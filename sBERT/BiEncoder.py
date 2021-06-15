@@ -7,38 +7,32 @@ from tqdm import tqdm
 from scipy.stats import spearmanr
 
 
-class CrossEncoder(nn.Module):
+class BiEncoder(nn.Module):
 
-    def __init__(self, hidden_layer_size=200, model_name='bert-base-uncased', device='cuda'):
-        super(CrossEncoder, self).__init__()
+    def __init__(self, model_name='bert-base-uncased', device='cuda'):
+        super(BiEncoder, self).__init__()
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.bert = AutoModel.from_pretrained(model_name, add_pooling_layer=False)
-        self.hidden_layer = nn.Linear(self.bert.config.hidden_size, hidden_layer_size)
-        self.gelu = nn.GELU()
-        self.output_layer = nn.Linear(hidden_layer_size, 1)
-        self.sigmoid = nn.Sigmoid()
         self.device = device
         self.to(device)
 
     def forward(self, **x):
         x = self.bert(**x).last_hidden_state  # size = batch x longest_length x emb_size
-        x = x[:, 0, :]  # take the output of [CLS]
-        x = self.gelu(self.hidden_layer(x))
-        x = self.sigmoid(self.output_layer(x))
+        x = torch.mean(x, 1)
         return x
 
     def prepare_batch(self, batch):
-        joint_sentences = [s1 + ' [SEP] ' + s2 for s1, s2 in zip(batch['sentence1'],
-                                                                 batch['sentence2'])]
+        joint_sentences = batch['sentence1'] + batch['sentence2']
         return self.tokenizer(joint_sentences, padding='longest', return_tensors='pt') \
             .to(self.device)
 
 
-def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_size=16, num_epochs=4,
-                             lr=2e-5, device='cuda'):
-    model = CrossEncoder(device=device)
+def run_experiment_biencoder(train_dataset, dev_dataset, test_dataset, batch_size=16, num_epochs=4,
+                             lr=2e-5, device='cuda', disable_progress_bar=False):
+    model = BiEncoder(device=device)
     optimizer = AdamW(model.parameters(), lr=lr)
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
     loss_function = nn.MSELoss()
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size)
@@ -47,10 +41,12 @@ def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_siz
     def evaluate(dataloader):
         pred = []
         gold = []
-        for batch in tqdm(dataloader):
+        for batch in tqdm(dataloader, disable=disable_progress_bar):
             outputs = model(**model.prepare_batch(batch)).squeeze(1)
+            N = outputs.shape[0] // 2
+            pred_scores = cos(outputs[:N], outputs[N:])
             targets = batch['similarity_score'].float() / 5.0
-            pred += outputs.detach().cpu().numpy().tolist()
+            pred += pred_scores.detach().cpu().numpy().tolist()
             gold += targets.detach().tolist()
         return loss_function(torch.FloatTensor(pred), torch.FloatTensor(gold)).item(), \
                spearmanr(pred, gold)[0]
@@ -61,8 +57,10 @@ def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_siz
         for batch in tqdm(train_dataloader):
             optimizer.zero_grad()
             outputs = model(**model.prepare_batch(batch)).squeeze(1)
+            N = outputs.shape[0] // 2
+            pred_scores = cos(outputs[:N], outputs[N:])
             targets = batch['similarity_score'].to(device).float() / 5.0
-            loss = loss_function(outputs, targets)
+            loss = loss_function(pred_scores, targets)
             loss.backward()
             optimizer.step()
 
