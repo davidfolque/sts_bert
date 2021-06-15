@@ -35,8 +35,8 @@ class CrossEncoder(nn.Module):
             .to(self.device)
 
 
-def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_size=16, num_epochs=4,
-                             lr=2e-5, device='cuda', disable_progress_bar=False):
+def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_size=16,
+                                num_epochs=4, lr=2e-5, device='cuda', disable_progress_bar=False):
     model = CrossEncoder(device=device)
     optimizer = AdamW(model.parameters(), lr=lr)
     loss_function = nn.MSELoss()
@@ -58,7 +58,7 @@ def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_siz
     for epoch in range(num_epochs):
 
         model.train()
-        for batch in tqdm(train_dataloader):
+        for batch in tqdm(train_dataloader, disable=disable_progress_bar):
             optimizer.zero_grad()
             outputs = model(**model.prepare_batch(batch)).squeeze(1)
             targets = batch['similarity_score'].to(device).float() / 5.0
@@ -71,4 +71,4 @@ def run_experiment_crossbert(train_dataset, dev_dataset, test_dataset, batch_siz
 
     test_loss, test_corr = evaluate(test_dataloader)
     print('Test loss: {:.4f}, correlation: {:.4f}'.format(test_loss, test_corr))
-    return test_corr
+    return test_loss, test_corr
