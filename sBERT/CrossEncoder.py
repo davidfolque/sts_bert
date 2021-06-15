@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from transformers import AdamW
 from tqdm import tqdm
 from scipy.stats import spearmanr
+import numpy as np
 
 
 class CrossEncoder(nn.Module):
@@ -43,6 +44,8 @@ def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+    best_loss = np.inf
+    best_model = model.state_dict()
 
     def evaluate(dataloader):
         pred = []
@@ -67,7 +70,13 @@ def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_
             optimizer.step()
 
         model.eval()
-        print('Loss: {:.4f}, correlation: {:.4f}'.format(*evaluate(dev_dataloader)))
+        dev_loss, dev_corr = evaluate(dev_dataloader)
+        print('Loss: {:.4f}, correlation: {:.4f}'.format(dev_loss, dev_corr))
+        if dev_loss < best_loss:
+            best_model = model.state_dict()
+            best_loss = dev_loss
+
+    model.load_state_dict(best_model)
 
     test_loss, test_corr = evaluate(test_dataloader)
     print('Test loss: {:.4f}, correlation: {:.4f}'.format(test_loss, test_corr))
