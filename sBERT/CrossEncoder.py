@@ -44,7 +44,7 @@ def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
-    best_corr = np.inf
+    best_corr = 0
     best_model = model.state_dict()
 
     def evaluate(dataloader):
@@ -71,10 +71,12 @@ def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_
 
         model.eval()
         dev_loss, dev_corr = evaluate(dev_dataloader)
-        print('Loss: {:.4f}, correlation: {:.4f}'.format(dev_loss, dev_corr))
-        if dev_corr < best_corr:
+        ast = ''
+        if dev_corr > best_corr:
             best_model = model.state_dict()
             best_corr = dev_corr
+            ast = '*'
+        print('Loss: {:.4f}, correlation: {:.4f}'.format(dev_loss, dev_corr) + ast)
 
     model.load_state_dict(best_model)
 
