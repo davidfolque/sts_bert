@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from transformers import AdamW
 from tqdm import tqdm
 from scipy.stats import spearmanr
-import numpy as np
+from Trainer import Trainer
 
 
 class BiEncoder(nn.Module):
@@ -27,6 +27,21 @@ class BiEncoder(nn.Module):
         joint_sentences = batch['sentence1'] + batch['sentence2']
         return self.tokenizer(joint_sentences, padding='longest', return_tensors='pt') \
             .to(self.device)
+
+
+class BiEncoderTrainer(Trainer):
+
+    def predict_batch(self, batch):
+        joint_sentences = batch['sentence1'] + batch['sentence2']
+        inputs = self.model.tokenizer(joint_sentences, padding='longest', return_tensors='pt').to(
+            self.model.device)
+        outputs = self.model(**inputs).squeeze(1)
+        targets = batch['similarity_score'].float() / 5.0
+        return outputs, targets
+
+    @staticmethod
+    def performance(pred, gold):
+        return spearmanr(pred, gold)[0]
 
 
 def run_experiment_biencoder(train_dataset, dev_dataset, test_dataset, batch_size=16, num_epochs=4,
