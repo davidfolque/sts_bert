@@ -27,7 +27,7 @@ class Trainer:
     def predict(self, dl, disable_progress_bar=False):
         pred = []
         gold = []
-        for batch in tqdm(self.dev_dl, disable=disable_progress_bar):
+        for batch in tqdm(dl, disable=disable_progress_bar):
             batch_pred, batch_gold = self.predict_batch(batch)
             pred += batch_pred.detach().cpu().numpy().tolist()
             gold += batch_gold.detach().tolist()
@@ -41,7 +41,7 @@ class Trainer:
 
     def score(self, dl, disable_progress_bar=False):
         pred, gold = self.predict(dl, disable_progress_bar=disable_progress_bar)
-        loss = self.loss_function(np.array(pred), np.array(gold))
+        loss = self.loss_function(torch.Tensor(pred), torch.Tensor(gold))
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
@@ -52,23 +52,25 @@ class Trainer:
             for batch in tqdm(self.train_dl, disable=disable_progress_bar):
                 self.optimizer.zero_grad()
                 batch_pred, batch_gold = self.predict_batch(batch)
-                loss = self.loss_function(batch_pred, batch_gold)
+                loss = self.loss_function(batch_pred, batch_gold.to(self.model.device))
                 loss.backward()
                 self.optimizer.step()
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
 
             self.model.eval()
-            dev_performance, dev_loss = self.score(self.dev_dl)
+            dev_performance, dev_loss = self.score(self.dev_dl,
+                                                   disable_progress_bar=disable_progress_bar)
             ast = ''
             if dev_performance > self.best_dev_performance:
                 self.best_model = self.model.state_dict()
                 self.best_dev_performance = dev_performance
                 ast = '*'
-            print('Epoch {:4d}: loss: {: 8.4f}, score: {: 8.4f}'.format(
+            print('Epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                 epoch + 1, dev_loss, dev_performance) + ast)
 
         self.model.load_state_dict(self.best_model)
 
-        test_loss, test_corr = self.score(self.test_dl)
+        test_loss, test_corr = self.score(
+            self.test_dl, disable_progress_bar=disable_progress_bar)
         print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_corr))

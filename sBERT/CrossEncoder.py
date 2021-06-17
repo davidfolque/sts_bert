@@ -8,6 +8,7 @@ from scipy.stats import spearmanr
 import numpy as np
 from Trainer import Trainer
 
+
 class CrossEncoder(nn.Module):
 
     def __init__(self, hidden_layer_size=200, sigmoid_temperature=0.1,
@@ -41,9 +42,8 @@ class CrossEncoderTrainer(Trainer):
         test_dl = DataLoader(dataset['test'], batch_size=batch_size)
         optimizer = AdamW(model.parameters(), lr=lr)
         loss_function = nn.MSELoss()
-        super(Trainer, self).__init__(model=model, train_dl=train_dl, dev_dl=dev_dl,
-                                      test_dl=test_dl, optimizer=optimizer,
-                                      loss_function=loss_function)
+        super().__init__(model=model, train_dl=train_dl, dev_dl=dev_dl, test_dl=test_dl,
+                         optimizer=optimizer, loss_function=loss_function)
 
     def predict_batch(self, batch):
         joint_sentences = [s1 + ' [SEP] ' + s2 for s1, s2 in
@@ -59,50 +59,3 @@ class CrossEncoderTrainer(Trainer):
         return spearmanr(pred, gold)[0]
 
 
-def run_experiment_crossencoder(train_dataset, dev_dataset, test_dataset, batch_size=16,
-                                num_epochs=4, lr=2e-5, device='cuda', disable_progress_bar=False):
-    model = CrossEncoder(device=device)
-    optimizer = AdamW(model.parameters(), lr=lr)
-    loss_function = nn.MSELoss()
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    dev_dataloader = DataLoader(dev_dataset, batch_size=batch_size)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
-    best_corr = 0
-    best_model = model.state_dict()
-
-    def evaluate(dataloader):
-        pred = []
-        gold = []
-        for batch in tqdm(dataloader, disable=disable_progress_bar):
-            outputs = model(**model.prepare_batch(batch)).squeeze(1)
-            targets = batch['similarity_score'].float() / 5.0
-            pred += outputs.detach().cpu().numpy().tolist()
-            gold += targets.detach().tolist()
-        return loss_function(torch.FloatTensor(pred), torch.FloatTensor(gold)).item(), \
-               spearmanr(pred, gold)[0]
-
-    for epoch in range(num_epochs):
-
-        model.train()
-        for batch in tqdm(train_dataloader, disable=disable_progress_bar):
-            optimizer.zero_grad()
-            outputs = model(**model.prepare_batch(batch)).squeeze(1)
-            targets = batch['similarity_score'].to(device).float() / 5.0
-            loss = loss_function(outputs, targets)
-            loss.backward()
-            optimizer.step()
-
-        model.eval()
-        dev_loss, dev_corr = evaluate(dev_dataloader)
-        ast = ''
-        if dev_corr > best_corr:
-            best_model = model.state_dict()
-            best_corr = dev_corr
-            ast = '*'
-        print('Loss: {:.4f}, correlation: {:.4f}'.format(dev_loss, dev_corr) + ast)
-
-    model.load_state_dict(best_model)
-
-    test_loss, test_corr = evaluate(test_dataloader)
-    print('Test loss: {:.4f}, correlation: {:.4f}'.format(test_loss, test_corr))
-    return test_loss, test_corr
