@@ -71,6 +71,8 @@ class Trainer:
 
         self.model.load_state_dict(self.best_model)
 
-        test_loss, test_corr = self.score(
+        test_performance, test_loss = self.score(
             self.test_dl, disable_progress_bar=disable_progress_bar)
-        print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_corr))
+        print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_performance))
+
+        return test_performance, test_loss
