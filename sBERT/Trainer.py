@@ -5,12 +5,13 @@ from scipy.stats import spearmanr
 
 
 class Trainer:
-    def __init__(self, model, train_dl, dev_dl, test_dl, optimizer, lr_scheduler=None,
+    def __init__(self, model, train_dl, dev_dl, test_dl, num_epochs, optimizer, lr_scheduler=None,
                  loss_function=None):
         self.model = model
         self.train_dl = train_dl
         self.dev_dl = dev_dl
         self.test_dl = test_dl
+        self.num_epochs = num_epochs
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.loss_function = loss_function
@@ -45,8 +46,8 @@ class Trainer:
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
-    def train(self, num_epochs, disable_progress_bar):
-        for epoch in range(num_epochs):
+    def train(self, disable_progress_bar):
+        for epoch in range(self.num_epochs):
 
             self.model.train()
             for batch in tqdm(self.train_dl, disable=disable_progress_bar):
