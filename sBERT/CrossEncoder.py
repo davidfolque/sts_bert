@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import AdamW
-from transformers import get_scheduler
 from tqdm import tqdm
 from scipy.stats import spearmanr
 import numpy as np
@@ -92,22 +91,10 @@ class CrossEncoderTrainer(Trainer):
         dev_dl = DataLoader(dataset['dev'], batch_size=batch_size)
         test_dl = DataLoader(dataset['test'], batch_size=batch_size)
         optimizer = AdamW(model.parameters(), lr=lr)
-
-        steps_per_epoch = (len(train_dataset) - 1) // batch_size + 1
-        total_training_steps = num_epochs * steps_per_epoch
-        if lr_scheduler == 'constant':
-            lr_scheduler = 'constant_with_warmup'
-        warmup_steps = int(total_training_steps * warmup_percent)
-        print('Scheduler type: {}, epochs: {}, steps per epoch: {}, total steps: {}, '
-              'warmup steps: {}'.format(lr_scheduler, num_epochs, steps_per_epoch,
-                                        total_training_steps, warmup_steps))
-        lr_scheduler = get_scheduler(lr_scheduler, optimizer, num_warmup_steps=warmup_steps,
-                                     num_training_steps=total_training_steps)
-
         loss_function = nn.MSELoss()
         super().__init__(model=model, train_dl=train_dl, dev_dl=dev_dl, test_dl=test_dl,
-                         optimizer=optimizer, lr_scheduler=lr_scheduler,
-                         loss_function=loss_function)
+                         num_epochs=num_epochs, optimizer=optimizer, lr_scheduler=lr_scheduler,
+                         warmup_percent=warmup_percent, loss_function=loss_function)
 
     def predict_batch(self, batch):
         joint_sentences = [s1 + ' [SEP] ' + s2 for s1, s2 in

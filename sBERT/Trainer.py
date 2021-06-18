@@ -2,18 +2,31 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from scipy.stats import spearmanr
+from transformers import get_scheduler
 
 
 class Trainer:
-    def __init__(self, model, train_dl, dev_dl, test_dl, num_epochs, optimizer, lr_scheduler=None,
-                 loss_function=None):
+    def __init__(self, model, train_dl, dev_dl, test_dl, num_epochs, optimizer,
+                 lr_scheduler='constant', warmup_percent=0.0, loss_function=None):
         self.model = model
         self.train_dl = train_dl
         self.dev_dl = dev_dl
         self.test_dl = test_dl
         self.num_epochs = num_epochs
         self.optimizer = optimizer
-        self.lr_scheduler = lr_scheduler
+
+        # LR scheduler.
+        steps_per_epoch = (len(train_dl) - 1) // train_dl.batch_size + 1
+        total_training_steps = num_epochs * steps_per_epoch
+        if lr_scheduler == 'constant':
+            lr_scheduler = 'constant_with_warmup'
+        warmup_steps = int(total_training_steps * warmup_percent)
+        print('Scheduler type: {}, epochs: {}, steps per epoch: {}, total steps: {}, '
+              'warmup steps: {}'.format(lr_scheduler, num_epochs, steps_per_epoch,
+                                        total_training_steps, warmup_steps))
+        self.lr_scheduler = get_scheduler(lr_scheduler, optimizer, num_warmup_steps=warmup_steps,
+                                          num_training_steps=total_training_steps)
+
         self.loss_function = loss_function
 
         # For early stopping.
