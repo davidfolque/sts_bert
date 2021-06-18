@@ -16,7 +16,7 @@ def select_from_state_dict(state_dict, key):
 class CrossEncoder(nn.Module):
 
     # Modes: cls-pooling-hl, mean-pooling-hl, linear-pooling, pretrained-nli
-    def __init__(self, hidden_layer_size=200, sigmoid_temperature=10, mode='cls',
+    def __init__(self, hidden_layer_size=200, sigmoid_temperature=10, mode='cls-pooling',
                  pretrained_nli_label_num=3, device='cuda'):
         super(CrossEncoder, self).__init__()
 
@@ -97,10 +97,8 @@ class CrossEncoderTrainer(Trainer):
                          warmup_percent=warmup_percent, loss_function=loss_function)
 
     def predict_batch(self, batch):
-        joint_sentences = [s1 + ' [SEP] ' + s2 for s1, s2 in
-                           zip(batch['sentence1'], batch['sentence2'])]
-        inputs = self.model.tokenizer(joint_sentences, padding='longest', return_tensors='pt').to(
-            self.model.device)
+        inputs = self.model.tokenizer(batch['sentence1'], batch['sentence2'], padding='longest',
+                                      return_tensors='pt').to(self.model.device)
         outputs = self.model(**inputs).squeeze(1)
         targets = batch['similarity_score'].float() / 5.0
         return outputs, targets

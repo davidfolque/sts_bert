@@ -16,7 +16,7 @@ class Trainer:
         self.optimizer = optimizer
 
         # LR scheduler.
-        steps_per_epoch = (len(train_dl) - 1) // train_dl.batch_size + 1
+        steps_per_epoch = len(train_dl)
         total_training_steps = num_epochs * steps_per_epoch
         if lr_scheduler == 'constant':
             lr_scheduler = 'constant_with_warmup'
