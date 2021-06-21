@@ -8,19 +8,46 @@ from scipy.stats import spearmanr
 from Trainer import Trainer
 
 
+def select_from_state_dict(state_dict, key):
+    return {k.split('.', 1)[1]: v for k, v in dict(state_dict).items() if k.split('.', 1)[0] == key}
+
+
 class BiEncoder(nn.Module):
 
-    def __init__(self, model_name='bert-base-uncased', device='cuda'):
+    def __init__(self, mode='base', device='cuda'):
         super(BiEncoder, self).__init__()
 
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.bert = AutoModel.from_pretrained(model_name, add_pooling_layer=False)
+        assert(mode in ['base', 'pretrained-nli'])
+        self.mode = mode
+
+        self.bert = AutoModel.from_pretrained('bert-base-uncased')
+        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+
+        if mode == 'pretrained-nli':
+            # Load pretrained model state_dict
+            path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/pretrained_models/' \
+                   'bert-nli/bert-base.state_dict'
+            print('Loading state dict from ' + path + '.')
+            state_dict = torch.load(path, map_location=device)
+
+            # Load pretrained bert model. Setting strict=False as we don't have position_ids. But
+            # they are not needed here, we can use the default ones.
+            load_result = self.bert.load_state_dict(select_from_state_dict(state_dict, 'bert'),
+                                                    strict=False)
+            # Assert that the only keys missing are the position ids.
+            assert(load_result.missing_keys == ['embeddings.position_ids'])
+            assert(load_result.unexpected_keys == [])
+
         self.device = device
         self.to(device)
 
     def forward(self, **x):
-        x = self.bert(**x).last_hidden_state  # size = batch x longest_length x emb_size
-        x = torch.mean(x, 1)
+        x = self.bert(**x)
+        if self.mode == 'base':
+            x = torch.mean(x.last_hidden_state, 1)
+        else:
+            assert(self.mode == 'pretrained-nli')
+            x = x.pooler_output
         return x
 
 
