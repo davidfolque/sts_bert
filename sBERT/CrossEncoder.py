@@ -20,20 +20,21 @@ class CrossEncoder(nn.Module):
                  pretrained_nli_label_num=3, device='cuda'):
         super(CrossEncoder, self).__init__()
 
-        assert(mode in ['cls-pooling', 'mean-pooling', 'linear-pooling', 'pretrained_nli'])
+        assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
+                        'linear-pooling', 'pretrained-nli-base', 'pretrained-nli-head'])
         self.mode = mode
 
         self.bert = BertModel.from_pretrained('bert-base-uncased')
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-        if self.mode in ['cls-pooling', 'mean-pooling']:
+        if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
             self.hidden_layer = nn.Linear(self.bert.config.hidden_size, hidden_layer_size)
             self.gelu = nn.GELU()
             output_layer_in_size = hidden_layer_size
-        elif self.mode == 'linear-pooling':
+        elif self.mode in ['cls-pooling', 'mean-pooling', 'linear-pooling']:
             output_layer_in_size = self.bert.config.hidden_size
         else:
-            assert(self.mode == 'pretrained_nli')
+            assert(self.mode in ['pretrained-nli-base', 'pretrained-nli-head'])
 
             # Load pretrained model state_dict
             path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/pretrained_models/' \
@@ -49,13 +50,15 @@ class CrossEncoder(nn.Module):
             assert(load_result.missing_keys == ['embeddings.position_ids'])
             assert(load_result.unexpected_keys == [])
 
-            # Create and load the pretrained nli head.
-            self.nli_head = nn.Linear(self.bert.config.hidden_size, pretrained_nli_label_num)
-            self.nli_head.load_state_dict(select_from_state_dict(state_dict, 'nli_head'))
-            print('Pretrained NLI model successfully loaded.')
+            if self.mode == 'pretrained-nli-head':
+                # Create and load the pretrained nli head.
+                self.nli_head = nn.Linear(self.bert.config.hidden_size, pretrained_nli_label_num)
+                self.nli_head.load_state_dict(select_from_state_dict(state_dict, 'nli_head'))
+                output_layer_in_size = pretrained_nli_label_num
+            else:
+                output_layer_in_size = self.bert.config.hidden_size
 
-            self.softmax = nn.Softmax(dim=1)
-            output_layer_in_size = pretrained_nli_label_num
+            print('Pretrained NLI model successfully loaded.')
 
         self.output_layer = nn.Linear(output_layer_in_size, 1)
         self.sigmoid = nn.Sigmoid()
@@ -66,17 +69,18 @@ class CrossEncoder(nn.Module):
     def forward(self, **x):
         x = self.bert(**x)
 
-        if self.mode == 'cls-pooling':
+        if self.mode in ['cls-pooling', 'cls-pooling-hidden']:
             x = x.last_hidden_state[:, 0, :] # Take the output of [CLS].
-            x = self.gelu(self.hidden_layer(x))
-        elif self.mode == 'mean-pooling':
+        elif self.mode in ['mean-pooling', 'mean-pooling-hidden']:
             x = torch.mean(x.last_hidden_state, dim=1) # Take the mean of all tokens' embeddings.
-            x = self.gelu(self.hidden_layer(x))
-        elif self.mode == 'linear-pooling':
+        elif self.mode in ['linear-pooling', 'pretrained-nli-base']:
             x = x.pooler_output
         else:
-            assert(self.mode == 'pretrained_nli')
-            x = self.softmax(self.nli_head(x.pooler_output))
+            assert(self.mode == 'pretrained-nli-head')
+            x = self.nli_head(x.pooler_output)
+
+        if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
+            x = self.gelu(self.hidden_layer(x))
 
         x = self.output_layer(x)
         x = self.sigmoid(x / self.sigmoid_temperature)
