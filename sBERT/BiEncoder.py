@@ -12,13 +12,14 @@ class BiEncoder(nn.Module):
     def __init__(self, mode='base', device='cuda'):
         super(BiEncoder, self).__init__()
 
-        assert(mode in ['base', 'pretrained-nli'])
+        assert(mode in ['base-linear-pooling', 'base-mean-pooling', 'nli-linear-pooling',
+                        'nli-mean-pooling'])
         self.mode = mode
 
         self.bert = AutoModel.from_pretrained('bert-base-uncased')
         self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
 
-        if mode == 'pretrained-nli':
+        if mode in ['nli-linear-pooling', 'nli-mean-pooling']:
             # Load pretrained model state_dict
             path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/pretrained_models/' \
                    'bert-nli/bert-base.state_dict'
@@ -38,10 +39,10 @@ class BiEncoder(nn.Module):
 
     def forward(self, **x):
         x = self.bert(**x)
-        if self.mode == 'base':
+        if self.mode in ['base-mean-pooling', 'nli-mean-pooling']:
             x = torch.mean(x.last_hidden_state, 1)
         else:
-            assert(self.mode == 'pretrained-nli')
+            assert(self.mode in ['base-linear-pooling', 'nli-linear-pooling'])
             x = x.pooler_output
         return x
 

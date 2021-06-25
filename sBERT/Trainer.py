@@ -59,29 +59,31 @@ class Trainer:
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
-    def train(self, disable_progress_bar):
-        for epoch in range(self.num_epochs):
+    def train(self, disable_progress_bar, eval_zero_shot=False):
+        for epoch in range(-1, self.num_epochs):
 
-            self.model.train()
-            for batch in tqdm(self.train_dl, disable=disable_progress_bar):
-                self.optimizer.zero_grad()
-                batch_pred, batch_gold = self.predict_batch(batch)
-                loss = self.loss_function(batch_pred, batch_gold.to(self.model.device))
-                loss.backward()
-                self.optimizer.step()
-                if self.lr_scheduler is not None:
-                    self.lr_scheduler.step()
+            if epoch >= 0:
+                self.model.train()
+                for batch in tqdm(self.train_dl, disable=disable_progress_bar):
+                    self.optimizer.zero_grad()
+                    batch_pred, batch_gold = self.predict_batch(batch)
+                    loss = self.loss_function(batch_pred, batch_gold.to(self.model.device))
+                    loss.backward()
+                    self.optimizer.step()
+                    if self.lr_scheduler is not None:
+                        self.lr_scheduler.step()
 
-            self.model.eval()
-            dev_performance, dev_loss = self.score(self.dev_dl,
-                                                   disable_progress_bar=disable_progress_bar)
-            ast = ''
-            if dev_performance > self.best_dev_performance:
-                self.best_model = self.model.state_dict()
-                self.best_dev_performance = dev_performance
-                ast = '*'
-            print('Epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
-                epoch + 1, dev_loss, dev_performance) + ast)
+            if epoch >= 0 or eval_zero_shot:
+                self.model.eval()
+                dev_performance, dev_loss = self.score(self.dev_dl,
+                                                       disable_progress_bar=disable_progress_bar)
+                ast = ''
+                if dev_performance > self.best_dev_performance:
+                    self.best_model = self.model.state_dict()
+                    self.best_dev_performance = dev_performance
+                    ast = '*'
+                print('Epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
+                    epoch + 1, dev_loss, dev_performance) + ast)
 
         self.model.load_state_dict(self.best_model)
 
