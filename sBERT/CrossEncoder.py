@@ -14,7 +14,7 @@ class CrossEncoder(nn.Module):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
-                        'linear-pooling', 'pretrained-nli-base', 'pretrained-nli-head'])
+                        'linear-pooling', 'nli-base', 'nli-head'])
         self.mode = mode
 
         self.bert = BertModel.from_pretrained('bert-base-uncased')
@@ -27,7 +27,7 @@ class CrossEncoder(nn.Module):
         elif self.mode in ['cls-pooling', 'mean-pooling', 'linear-pooling']:
             output_layer_in_size = self.bert.config.hidden_size
         else:
-            assert(self.mode in ['pretrained-nli-base', 'pretrained-nli-head'])
+            assert(self.mode in ['nli-base', 'nli-head'])
 
             # Load pretrained model state_dict
             path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/pretrained_models/' \
@@ -43,7 +43,7 @@ class CrossEncoder(nn.Module):
             assert(load_result.missing_keys == ['embeddings.position_ids'])
             assert(load_result.unexpected_keys == [])
 
-            if self.mode == 'pretrained-nli-head':
+            if self.mode == 'nli-head':
                 # Create and load the pretrained nli head.
                 self.nli_head = nn.Linear(self.bert.config.hidden_size, pretrained_nli_label_num)
                 self.nli_head.load_state_dict(select_from_state_dict(state_dict, 'nli_head'))
@@ -66,10 +66,10 @@ class CrossEncoder(nn.Module):
             x = x.last_hidden_state[:, 0, :] # Take the output of [CLS].
         elif self.mode in ['mean-pooling', 'mean-pooling-hidden']:
             x = torch.mean(x.last_hidden_state, dim=1) # Take the mean of all tokens' embeddings.
-        elif self.mode in ['linear-pooling', 'pretrained-nli-base']:
+        elif self.mode in ['linear-pooling', 'nli-base']:
             x = x.pooler_output
         else:
-            assert(self.mode == 'pretrained-nli-head')
+            assert(self.mode == 'nli-head')
             x = self.nli_head(x.pooler_output)
 
         if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
