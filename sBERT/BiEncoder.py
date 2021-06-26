@@ -9,15 +9,15 @@ def select_from_state_dict(state_dict, key):
 
 class BiEncoder(nn.Module):
 
-    def __init__(self, mode='base', device='cuda'):
+    def __init__(self, mode='base', device='cuda', bert_model='bert-base-uncased'):
         super(BiEncoder, self).__init__()
 
         assert(mode in ['base-linear-pooling', 'base-mean-pooling', 'nli-linear-pooling',
                         'nli-mean-pooling'])
         self.mode = mode
 
-        self.bert = AutoModel.from_pretrained('bert-base-uncased')
-        self.tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+        self.bert = AutoModel.from_pretrained(bert_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(bert_model)
 
         if mode in ['nli-linear-pooling', 'nli-mean-pooling']:
             # Load pretrained model state_dict

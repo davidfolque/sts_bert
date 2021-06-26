@@ -6,8 +6,8 @@ import torch.nn as nn
 
 class PawsTrainer(Trainer):
 
-    def __init__(self, model, dataset, num_epochs, batch_size=16, lr=2e-5):
-        train_dl = DataLoader(dataset['train'], batch_size=batch_size, shuffle=True)
+    def __init__(self, model, train_dataset, dataset, num_epochs, batch_size=16, lr=2e-5):
+        train_dl = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         dev_dl = DataLoader(dataset['dev'], batch_size=batch_size)
         test_dl = DataLoader(dataset['test'], batch_size=batch_size)
         optimizer = AdamW(model.parameters(), lr=lr)
@@ -18,7 +18,7 @@ class PawsTrainer(Trainer):
 
     def predict_batch(self, batch):
         outputs = self.model.predict_batch(batch['sentence1'], batch['sentence2'])
-        targets = batch['label']
+        targets = list(map(float, batch['label']))
         return outputs, targets
 
     @staticmethod

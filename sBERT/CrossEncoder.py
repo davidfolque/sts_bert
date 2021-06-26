@@ -1,6 +1,7 @@
 from transformers import BertModel, BertTokenizer
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 def select_from_state_dict(state_dict, key):
@@ -10,15 +11,15 @@ def select_from_state_dict(state_dict, key):
 class CrossEncoder(nn.Module):
 
     def __init__(self, hidden_layer_size=200, sigmoid_temperature=10, mode='cls-pooling',
-                 pretrained_nli_label_num=3, device='cuda'):
+                 pretrained_nli_label_num=3, device='cuda', bert_model='bert-base-uncased'):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
                         'linear-pooling', 'nli-base', 'nli-head'])
         self.mode = mode
 
-        self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.bert = BertModel.from_pretrained(bert_model)
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
 
         if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
             self.hidden_layer = nn.Linear(self.bert.config.hidden_size, hidden_layer_size)
@@ -105,7 +106,7 @@ class CrossEncoderPretrained(nn.Module):
             # y = 1/(1+exp(-x)), exp(-x)=(1-y)/y, x=-log((1-y)/y)
             # sg(x) = 1/(1+exp(-x)) = 0.8 => x = -log(0.25)
             # sg(x+b) = 1/(1+exp(-x-b)) = 0.5 => x+b = -log(1)
-            pretrained_head.bias.data += torch.log(torch.Tensor([0.25]))
+            pretrained_head.bias.data += np.log(0.25)
         else:
             assert(mode == 'replace-head')
             self.extra_head = nn.Linear(pretrained_head.out_features, 1)
@@ -116,16 +117,17 @@ class CrossEncoderPretrained(nn.Module):
         self.to(self.device)
 
     def forward(self, input_ids, token_type_ids, attention_mask):
-        x = self.pretrained_cross_encoder(input_ids, token_type_ids, attention_mask)
+        x = self.pretrained_cross_encoder(input_ids=input_ids, attention_mask=attention_mask,
+                                          token_type_ids=token_type_ids)
 
-        if self.mode == 'replace-head':
+        if self.mode == 'additional-head':
             x = self.extra_head(x)
             x = self.sigmoid(x / self.sigmoid_temperature)
 
         return x
 
     def predict_batch(self, sentence1, sentence2):
-        inputs = self.tokenizer(sentence1, sentence2, padding='longest', return_tensors='pt').to(
-            self.device)
+        inputs = self.pretrained_cross_encoder.tokenizer(sentence1, sentence2, padding='longest',
+                                                         return_tensors='pt').to(self.device)
         outputs = self.forward(**inputs).squeeze(1)
         return outputs
