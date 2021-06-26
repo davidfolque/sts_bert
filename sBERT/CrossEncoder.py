@@ -1,4 +1,4 @@
-from transformers import BertModel, BertTokenizer
+from transformers import BertConfig, BertModel, BertTokenizer
 import torch
 import torch.nn as nn
 import numpy as np
@@ -11,15 +11,20 @@ def select_from_state_dict(state_dict, key):
 class CrossEncoder(nn.Module):
 
     def __init__(self, hidden_layer_size=200, sigmoid_temperature=10, mode='cls-pooling',
-                 pretrained_nli_label_num=3, device='cuda', bert_model='bert-base-uncased'):
+                 pretrained_nli_label_num=3, device='cuda', toy_model=False):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
                         'linear-pooling', 'nli-base', 'nli-head'])
         self.mode = mode
 
-        self.bert = BertModel.from_pretrained(bert_model)
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        if toy_model:
+            bert_config = BertConfig.from_pretrained('bert-base-uncased')
+            bert_config.num_hidden_layers = 1
+            self.bert = BertModel(bert_config)
+        else:
+            self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
         if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
             self.hidden_layer = nn.Linear(self.bert.config.hidden_size, hidden_layer_size)
@@ -108,7 +113,7 @@ class CrossEncoderPretrained(nn.Module):
             # sg(x+b) = 1/(1+exp(-x-b)) = 0.5 => x+b = -log(1)
             pretrained_head.bias.data += np.log(0.25)
         else:
-            assert(mode == 'replace-head')
+            assert(mode == 'additional-head')
             self.extra_head = nn.Linear(pretrained_head.out_features, 1)
             self.sigmoid = nn.Sigmoid()
 

@@ -5,6 +5,12 @@ from scipy.stats import spearmanr
 from transformers import get_scheduler
 
 
+def tolist(obj):
+    if type(obj) == list:
+        return obj
+    return obj.tolist()
+
+
 class Trainer:
     def __init__(self, model, train_dl, dev_dl, test_dl, num_epochs, optimizer,
                  lr_scheduler='constant', warmup_percent=0.0, loss_function=None):
@@ -43,8 +49,8 @@ class Trainer:
         gold = []
         for batch in tqdm(dl, disable=disable_progress_bar):
             batch_pred, batch_gold = self.predict_batch(batch)
-            pred += batch_pred.detach().cpu().numpy().tolist()
-            gold += batch_gold.detach().tolist()
+            pred += tolist(batch_pred)
+            gold += tolist(batch_gold)
         return pred, gold
 
     # Override
@@ -67,6 +73,8 @@ class Trainer:
                 for batch in tqdm(self.train_dl, disable=disable_progress_bar):
                     self.optimizer.zero_grad()
                     batch_pred, batch_gold = self.predict_batch(batch)
+                    if type(batch_gold) == list:
+                        batch_gold = torch.FloatTensor(batch_gold)
                     loss = self.loss_function(batch_pred, batch_gold.to(self.model.device))
                     loss.backward()
                     self.optimizer.step()

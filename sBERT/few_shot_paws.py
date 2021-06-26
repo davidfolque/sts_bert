@@ -16,7 +16,7 @@ paws_dataset = load_paws_wiki(datasets_path=datasets_path)
 
 # Train original cross encoder.
 
-sts_model = CrossEncoder(mode='cls-pooling-hidden')
+sts_model = CrossEncoder(mode='cls-pooling-hidden', toy_model=False)
 sts_trainer = STSTrainer(model=sts_model, train_dataset=sts_dataset['train'],
                          dataset=sts_dataset, num_epochs=10, lr_scheduler='linear',
                          warmup_percent=0.2)
