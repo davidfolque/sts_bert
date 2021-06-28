@@ -66,7 +66,8 @@ class CrossEncoder(nn.Module):
         self.to(device)
 
     def forward(self, input_ids, token_type_ids, attention_mask):
-        x = self.bert(input_ids, token_type_ids, attention_mask)
+        x = self.bert(input_ids=input_ids, attention_mask=attention_mask,
+                      token_type_ids=token_type_ids)
 
         if self.mode in ['cls-pooling', 'cls-pooling-hidden']:
             x = x.last_hidden_state[:, 0, :] # Take the output of [CLS].
