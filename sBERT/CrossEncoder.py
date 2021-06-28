@@ -100,7 +100,7 @@ class CrossEncoderPretrained(nn.Module):
 
         self.pretrained_cross_encoder = pretrained_cross_encoder
 
-        assert(mode in ['replace-head', 'shift-bias', 'additional-head'])
+        assert(mode in ['as-is', 'replace-head', 'shift-bias', 'additional-head'])
         self.mode = mode
         pretrained_head = pretrained_cross_encoder.output_layer
         if mode == 'replace-head':
@@ -113,10 +113,11 @@ class CrossEncoderPretrained(nn.Module):
             # sg(x) = 1/(1+exp(-x)) = 0.8 => x = -log(0.25)
             # sg(x+b) = 1/(1+exp(-x-b)) = 0.5 => x+b = -log(1)
             pretrained_head.bias.data += np.log(0.25)
-        else:
-            assert(mode == 'additional-head')
+        elif mode == 'additional-head':
             self.extra_head = nn.Linear(pretrained_head.out_features, 1)
             self.sigmoid = nn.Sigmoid()
+        else:
+            assert(mode == 'as-is')
 
         self.sigmoid_temperature = sigmoid_temperature
         self.device = pretrained_cross_encoder.device
