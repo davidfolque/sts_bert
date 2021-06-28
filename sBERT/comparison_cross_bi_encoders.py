@@ -36,17 +36,14 @@ grid = {
     'lr': 2e-5,
     'lr_scheduler': 'linear',
     'warmup_percent': 0.2,
-    'mode': ['bi-encoder/base-linear-pooling',
-             'bi-encoder/base-mean-pooling',
-             'bi-encoder/nli-linear-pooling',
-             'bi-encoder/nli-mean-pooling',
-             'cross-encoder/nli-base',
-             'cross-encoder/cls-pooling-hidden'],
+    'mode': ['cross-encoder/cls-pooling-hidden',
+             'cross-encoder/mean-pooling-hidden'],
     'train_size': [500, 1000, 2000, 3000, 4000, len(dataset['train'])],
     'train_subset_seed': [1, 2, 3]
 }
 
 df_results = grid_run(grid, run_experiment,
-                      load_path='./comparison_results/results_210621_172128.csv',
-                      save_dir='./comparison_results')
+                      load_path=None,
+                      save_dir='./comparison_results',
+                      save_name='new_cross_encoder')
 

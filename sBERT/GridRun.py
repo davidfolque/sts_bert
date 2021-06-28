@@ -37,12 +37,16 @@ def construct_configs(grid):
     return configs
 
 
-def grid_run(grid, run_experiment_fnc, load_path=None, save_dir='.'):
+def grid_run(grid, run_experiment_fnc, load_path=None, save_dir='.', save_name=None):
     if not os.path.isdir(save_dir):
         print('Error: save path {} is not a valid directory'.format(save_dir))
         return
 
     time_string = datetime.now().strftime("%y%m%d_%H%M%S")
+    final_save_name = '/results_' + time_string
+    if save_name is not None:
+        final_save_name += '_' + save_name
+    final_save_name += '.csv'
     if load_path is None:
         df_results = pd.DataFrame(columns=list(grid.keys()) + ['test_score'])
     else:
@@ -61,7 +65,7 @@ def grid_run(grid, run_experiment_fnc, load_path=None, save_dir='.'):
         print_stats()
         df_results = df_results.append({**config, 'test_score': result}, ignore_index=True)
 
-        df_results.to_csv(save_dir + '/results_' + time_string + '.csv', index=False)
-        df_results.to_csv(save_dir + '/backup/results_' + time_string + '.csv', index=False)
+        df_results.to_csv(save_dir + final_save_name, index=False)
+        df_results.to_csv(save_dir + '/backup' + final_save_name, index=False)
 
     return df_results
