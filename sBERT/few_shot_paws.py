@@ -6,6 +6,11 @@ from STSTrainer import STSTrainer
 from PawsTrainer import PawsTrainer
 from GridRun import grid_run, random_sample
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--large_trainsets")
+args = parser.parse_args()
+
 # Load datasets.
 
 datasets_path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/datasets/'
@@ -45,12 +50,17 @@ def run_experiment(config):
 
 
 grid = {
-    'num_epochs': 5,
     'batch_size': 16,
     'lr': 2e-5,
-    'mode': ['replace-head', 'shift-bias', 'additional-head'],
-    'train_size': [50, 100, 200, 500, 1000, 2000, 10000, len(paws_dataset['train'])],
+    'mode': ['replace-head', 'as-is', 'additional-head'],
     'train_subset_seed': [1, 2, 3]
 }
+
+if args.large_trainsets:
+    grid['train_size'] = [10000, len(paws_dataset['train'])]
+    grid['num_epochs'] = 3
+else:
+    grid['train_size'] = [500, 1000, 2000, 5000]
+    grid['num_epochs'] = 5
 
 df_results = grid_run(grid, run_experiment, load_path=None, save_dir='./comparison_results')
