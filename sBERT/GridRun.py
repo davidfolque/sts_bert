@@ -45,31 +45,35 @@ def check_create_dir(path):
 
 
 def grid_run(grid, run_experiment_fnc, results_dir=None, exec_name=None, save_name=None):
-    if not os.path.isdir(results_dir):
-        print('Error: results dir {} is not a valid directory'.format(results_dir))
-        return
-    exec_dir = results_dir + '/' + exec_name
-    check_create_dir(exec_dir)
-    check_create_dir(exec_dir + '/backup')
-
-    results_files = [filename[8:21] for filename in os.listdir(exec_dir)
-                     if re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
-
-    if len(results_files) == 0:
-        print('Did not load any previous results')
-        df_results = pd.DataFrame(columns=list(grid.keys()) + ['test_score'])
+    if results_dir is None or exec_name is None:
+        print('Either results_dir or exec_name is None: won\'t store the results')
+        final_save_name = None
     else:
-        results_files.sort()
-        load_path = exec_dir + '/results_' + results_files[-1] + '.csv'
-        print('Loading previous results from ' + load_path)
-        df_results = pd.read_csv(load_path)
+        if not os.path.isdir(results_dir):
+            print('Error: results dir {} is not a valid directory'.format(results_dir))
+            return
+        exec_dir = results_dir + '/' + exec_name
+        check_create_dir(exec_dir)
+        check_create_dir(exec_dir + '/backup')
 
-    time_string = datetime.now().strftime("%y%m%d_%H%M%S")
-    final_save_name = '/results_' + time_string
-    if save_name is not None:
-        final_save_name += '_' + save_name
-    final_save_name += '.csv'
-    print('Results will be stored in file ' + final_save_name)
+        results_files = [filename[8:21] for filename in os.listdir(exec_dir)
+                         if re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
+
+        if len(results_files) == 0:
+            print('Did not load any previous results')
+            df_results = pd.DataFrame(columns=list(grid.keys()) + ['test_score'])
+        else:
+            results_files.sort()
+            load_path = exec_dir + '/results_' + results_files[-1] + '.csv'
+            print('Loading previous results from ' + load_path)
+            df_results = pd.read_csv(load_path)
+
+        time_string = datetime.now().strftime("%y%m%d_%H%M%S")
+        final_save_name = '/results_' + time_string
+        if save_name is not None:
+            final_save_name += '_' + save_name
+        final_save_name += '.csv'
+        print('Results will be stored in file ' + final_save_name)
 
     for config in construct_configs(grid):
         previous_result = df_results.merge(pd.DataFrame([config]))
@@ -84,7 +88,8 @@ def grid_run(grid, run_experiment_fnc, results_dir=None, exec_name=None, save_na
         print_stats()
         df_results = df_results.append({**config, 'test_score': result}, ignore_index=True)
 
-        df_results.to_csv(exec_dir + final_save_name, index=False)
-        df_results.to_csv(exec_dir + '/backup' + final_save_name, index=False)
+        if final_save_name is not None:
+            df_results.to_csv(exec_dir + final_save_name, index=False)
+            df_results.to_csv(exec_dir + '/backup' + final_save_name, index=False)
 
     return df_results
