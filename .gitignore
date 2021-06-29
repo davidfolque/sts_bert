@@ -1,2 +1,4 @@
 **/saved_models
 **/.ipynb_checkpoints
+**/machine.file.*
+**/slurm-*.out
