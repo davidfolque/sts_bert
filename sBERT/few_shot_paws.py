@@ -8,7 +8,9 @@ from GridRun import grid_run, random_sample
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--large_trainsets")
+parser.add_argument("--large_trainsets", action='store_true')
+parser.add_argument("--load_file")
+parser.add_argument("--save_name")
 args = parser.parse_args()
 
 # Load datasets.
@@ -52,15 +54,17 @@ def run_experiment(config):
 grid = {
     'batch_size': 16,
     'lr': 2e-5,
-    'mode': ['replace-head', 'as-is', 'additional-head'],
+    'lr_scheduler': 'constant',
+    'warmup_percent': 0.0,
+    'mode': ['replace-head', 'shift-bias', 'additional-head'],
     'train_subset_seed': [1, 2, 3]
 }
 
 if args.large_trainsets:
-    grid['train_size'] = [10000, len(paws_dataset['train'])]
-    grid['num_epochs'] = 3
+    grid['train_size'] = [10000]#, len(paws_dataset['train'])]
+    grid['num_epochs'] = 6
 else:
     grid['train_size'] = [500, 1000, 2000, 5000]
-    grid['num_epochs'] = 5
+    grid['num_epochs'] = 6
 
-df_results = grid_run(grid, run_experiment, load_path=None, save_dir='./comparison_results')
+df_results = grid_run(grid, run_experiment, load_path=args.load_file, save_dir='./comparison_results', save_name=args.save_name)

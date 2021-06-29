@@ -95,7 +95,7 @@ class CrossEncoder(nn.Module):
 
 class CrossEncoderPretrained(nn.Module):
 
-    def __init__(self, pretrained_cross_encoder, mode='replace-head', sigmoid_temperature=10):
+    def __init__(self, pretrained_cross_encoder, mode='replace-head'):
         super(CrossEncoderPretrained, self).__init__()
 
         self.pretrained_cross_encoder = pretrained_cross_encoder
@@ -119,7 +119,6 @@ class CrossEncoderPretrained(nn.Module):
         else:
             assert(mode == 'as-is')
 
-        self.sigmoid_temperature = sigmoid_temperature
         self.device = pretrained_cross_encoder.device
         self.to(self.device)
 
@@ -129,7 +128,7 @@ class CrossEncoderPretrained(nn.Module):
 
         if self.mode == 'additional-head':
             x = self.extra_head(x)
-            x = self.sigmoid(x / self.sigmoid_temperature)
+            x = self.sigmoid(x)
 
         return x
 
