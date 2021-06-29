@@ -87,7 +87,10 @@ class CrossEncoder(nn.Module):
         return x
 
     def predict_batch(self, sentence1, sentence2):
-        inputs = self.tokenizer(sentence1, sentence2, padding='longest', return_tensors='pt').to(
+        N = len(sentence1) // 2
+        flipped1 = sentence1[:N] + sentence2[N:]
+        flipped2 = sentence2[:N] + sentence1[N:]
+        inputs = self.tokenizer(flipped1, flipped2, padding='longest', return_tensors='pt').to(
             self.device)
         outputs = self.forward(**inputs).squeeze(1)
         return outputs
