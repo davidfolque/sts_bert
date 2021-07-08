@@ -39,6 +39,9 @@ class Trainer:
         self.best_dev_performance = -np.inf
         self.best_model = None
 
+        # Debug function to execute after each step.
+        self.debug_step_function = None
+
     # Override
     def predict_batch(self, batch):
         print('Method predict_batch should be overridden.')
@@ -80,6 +83,8 @@ class Trainer:
                     self.optimizer.step()
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
+                    if self.debug_step_function is not None:
+                        self.debug_step_function()
 
             if epoch >= 0 or eval_zero_shot:
                 self.model.eval()

@@ -18,8 +18,14 @@ class STSTrainer(Trainer):
                          num_epochs=num_epochs, optimizer=optimizer, lr_scheduler=lr_scheduler,
                          warmup_percent=warmup_percent, loss_function=loss_function)
 
-    def predict_batch(self, batch):
-        outputs = self.model.predict_batch(batch['sentence1'], batch['sentence2'])
+    def predict_batch(self, batch, flip=True):
+        if flip:
+            N = len(batch['sentence1']) // 2
+            flipped1 = batch['sentence1'][:N] + batch['sentence2'][N:]
+            flipped2 = batch['sentence2'][:N] + batch['sentence1'][N:]
+            outputs = self.model.predict_batch(flipped1, flipped2)
+        else:
+            outputs = self.model.predict_batch(batch['sentence1'], batch['sentence2'])
         targets = batch['similarity_score'].float() / 5.0
         return outputs, targets
 

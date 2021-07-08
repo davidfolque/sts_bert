@@ -5,8 +5,7 @@ from BiEncoder import BiEncoder
 from CrossEncoder import CrossEncoder
 from STSTrainer import STSTrainer
 from Datasets import load_sts
-from GridRun import grid_run, random_sample
-
+from GridRun import GridRun, random_sample
 
 dataset = load_sts()
 
@@ -17,17 +16,18 @@ def run_experiment(config):
     train_dataset_subset = torch.utils.data.Subset(dataset['train'], subset_indices)
 
     encoder, mode = config['mode'].split('/')
-    encoder_class = BiEncoder if encoder == 'bi-encoder' else CrossEncoder
-    model = encoder_class(mode=mode)
+    if encoder == 'bi-encoder':
+        model = BiEncoder(mode=mode, head='cos-sim')
+    else:
+        model = CrossEncoder(mode=mode)
 
     trainer = STSTrainer(model=model, train_dataset=train_dataset_subset, dataset=dataset,
                          num_epochs=config['num_epochs'], batch_size=config['batch_size'],
                          lr=config['lr'], lr_scheduler=config['lr_scheduler'],
                          warmup_percent=config['warmup_percent'])
     result = trainer.train(disable_progress_bar=True)
-    del model
-    torch.cuda.empty_cache()
-    return result
+    save_name = encoder + '_' + mode
+    return result, model, save_name
 
 
 grid = {
@@ -36,14 +36,16 @@ grid = {
     'lr': 2e-5,
     'lr_scheduler': 'linear',
     'warmup_percent': 0.2,
-    'mode': ['cross-encoder/cls-pooling-hidden',
-             'cross-encoder/mean-pooling-hidden'],
-    'train_size': [500, 1000, 2000, 3000, 4000, len(dataset['train'])],
+    'mode': [
+             'bi-encoder/nli-cls-pooling',
+             'bi-encoder/nli-mean-pooling',
+             'bi-encoder/nli-linear-pooling'],
+    #'train_size': [500, 1000, 2000, 3000, 4000, len(dataset['train'])],
+    'train_size': [len(dataset['train'])],
     'train_subset_seed': [1, 2, 3]
 }
 
-df_results = grid_run(grid, run_experiment,
-                      load_path=None,
-                      save_dir='./comparison_results',
-                      save_name='new_cross_encoder')
+grid_run = GridRun(run_experiment, results_dir='results', experiment_name='pretraining_sts')
+grid_run.run(grid, save_best=True, ignore_previous_results=True)
+# grid_run.df_results
 

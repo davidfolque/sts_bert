@@ -13,3 +13,6 @@ def load_paws_wiki(
     test = load_dataset('csv', data_files=path + 'test.tsv', delimiter='\t')['train']
     return {'train': train, 'dev': dev, 'test': test}
 
+
+def load_wiki_qa():
+    return load_dataset('wiki_qa')

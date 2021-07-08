@@ -15,7 +15,7 @@ class CrossEncoder(nn.Module):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
-                        'linear-pooling', 'nli-base', 'nli-head'])
+                        'linear-pooling', 'nli-base', 'nli-head', 'nli-head-3rd-component'])
         self.mode = mode
 
         if toy_model:
@@ -33,7 +33,7 @@ class CrossEncoder(nn.Module):
         elif self.mode in ['cls-pooling', 'mean-pooling', 'linear-pooling']:
             output_layer_in_size = self.bert.config.hidden_size
         else:
-            assert(self.mode in ['nli-base', 'nli-head'])
+            assert(self.mode in ['nli-base', 'nli-head', 'nli-head-3rd-component'])
 
             # Load pretrained model state_dict
             path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/pretrained_models/' \
@@ -49,17 +49,23 @@ class CrossEncoder(nn.Module):
             assert(load_result.missing_keys == ['embeddings.position_ids'])
             assert(load_result.unexpected_keys == [])
 
-            if self.mode == 'nli-head':
+            if self.mode in ['nli-head', 'nli-head-3rd-component']:
                 # Create and load the pretrained nli head.
                 self.nli_head = nn.Linear(self.bert.config.hidden_size, pretrained_nli_label_num)
                 self.nli_head.load_state_dict(select_from_state_dict(state_dict, 'nli_head'))
-                output_layer_in_size = pretrained_nli_label_num
+                if self.mode == 'nli-head':
+                    output_layer_in_size = pretrained_nli_label_num
+                else:
+                    assert(self.mode == 'nli-head-3rd-component')
+                    output_layer_in_size = None
             else:
+                assert(self.mode == 'nli-base')
                 output_layer_in_size = self.bert.config.hidden_size
 
             print('Pretrained NLI model successfully loaded.')
 
-        self.output_layer = nn.Linear(output_layer_in_size, 1)
+        if self.mode != 'nli-head-3rd-component':
+            self.output_layer = nn.Linear(output_layer_in_size, 1)
         self.sigmoid = nn.Sigmoid()
         self.sigmoid_temperature = sigmoid_temperature
         self.device = device
@@ -70,27 +76,28 @@ class CrossEncoder(nn.Module):
                       token_type_ids=token_type_ids)
 
         if self.mode in ['cls-pooling', 'cls-pooling-hidden']:
-            x = x.last_hidden_state[:, 0, :] # Take the output of [CLS].
+            x = x.last_hidden_state[:, 0, :]  # Take the output of [CLS].
         elif self.mode in ['mean-pooling', 'mean-pooling-hidden']:
             x = torch.mean(x.last_hidden_state, dim=1) # Take the mean of all tokens' embeddings.
         elif self.mode in ['linear-pooling', 'nli-base']:
             x = x.pooler_output
         else:
-            assert(self.mode == 'nli-head')
+            assert(self.mode in ['nli-head', 'nli-head-3rd-component'])
             x = self.nli_head(x.pooler_output)
 
         if self.mode in ['cls-pooling-hidden', 'mean-pooling-hidden']:
             x = self.gelu(self.hidden_layer(x))
 
-        x = self.output_layer(x)
+        if self.mode == 'nli-head-3rd-component':
+            x = x[:, 2:3]  # Take the output of the 3rd component 'entailment'.
+        else:
+            x = self.output_layer(x)
+
         x = self.sigmoid(x / self.sigmoid_temperature)
         return x
 
-    def predict_batch(self, sentence1, sentence2):
-        N = len(sentence1) // 2
-        flipped1 = sentence1[:N] + sentence2[N:]
-        flipped2 = sentence2[:N] + sentence1[N:]
-        inputs = self.tokenizer(flipped1, flipped2, padding='longest', return_tensors='pt').to(
+    def predict_batch(self, sentence1, sentence2, flip=False):
+        inputs = self.tokenizer(sentence1, sentence2, padding='longest', return_tensors='pt').to(
             self.device)
         outputs = self.forward(**inputs).squeeze(1)
         return outputs
@@ -105,7 +112,9 @@ class CrossEncoderPretrained(nn.Module):
 
         assert(mode in ['as-is', 'replace-head', 'shift-bias', 'additional-head'])
         self.mode = mode
-        pretrained_head = pretrained_cross_encoder.output_layer
+
+        if mode != 'as-is':
+            pretrained_head = pretrained_cross_encoder.output_layer
         if mode == 'replace-head':
             new_linear = nn.Linear(pretrained_head.in_features, pretrained_head.out_features)
             pretrained_head.weight = new_linear.weight
