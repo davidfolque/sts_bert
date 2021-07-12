@@ -5,7 +5,7 @@ from WikiQA.WikiQAClassifierTrainer import WikiQAClassifierTrainer
 from WikiQA.WikiQABinaryClassifierTrainer import WikiQABinaryClassifierTrainer
 from CrossEncoder import CrossEncoder, CrossEncoderPretrained
 from BiEncoder import BiEncoder
-from GridRun import GridRun
+from GridRun import GridRun, ArrayJobInfo
 
 wiki_qa = load_wiki_qa()
 
@@ -26,6 +26,13 @@ def run_experiment(config):
     # encoder, pretrained_model = config['pretrained_model'].split('/')
     encoder = config['encoder']
     pretrained_model = config['pretrained_model']
+
+    import time.sleep as sleep
+    import random
+    tm = random.randint(a=10, b=15)
+    print('Waiting', tm)
+    sleep(tm)
+    return tm, torch.nn.Linear(1,1), encoder+'_'+pretrained_model
 
     if encoder == 'cross':
         if pretrained_model in ['bert', 'sts']:
@@ -73,7 +80,7 @@ def run_experiment(config):
                                             num_epochs=config['num_epochs'],
                                             batch_size=config['batch_size'], lr=config['lr'],
                                             devset_size=max(1000, config['train_size']))
-    result = trainer.train(disable_progress_bar=False, eval_zero_shot=False, early_stopping=True)
+    result = trainer.train(disable_progress_bar=True, eval_zero_shot=False, early_stopping=True)
     save_name = 'pretrained_' + config['pretrained_model']
     return result, wiki_qa_model, save_name
 
@@ -98,11 +105,15 @@ grid = {
 n_tasks = int(os.environ['SLURM_ARRAY_TASK_COUNT'])
 if n_tasks > 1:
     task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    array_id = int(os.environ['SLURM_ARRAY_JOB_ID'])
     grid['pretrained_model'] = grid['pretrained_model'][task_id]
+    array_info = ArrayJobInfo(array_id=array_id, task_id=task_id)
+else:
+    array_info = None
 
-grid_run = GridRun(run_experiment, results_dir='results',
-                   experiment_name='few_shot_wikiqa_{}'.format(task_id))
-grid_run.run(grid, save_best=False, exec_name='only_2000')
+grid_run = GridRun(run_experiment, experiment_name='example', array_info=array_info,
+                   exec_name='hello')
+grid_run.run(grid, save_best=True)
 
 
 
