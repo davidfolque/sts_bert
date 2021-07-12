@@ -8,7 +8,7 @@ from scipy.stats import spearmanr
 class STSTrainer(Trainer):
 
     def __init__(self, model, train_dataset, dataset, num_epochs, batch_size=16, lr=2e-5,
-                 lr_scheduler='constant', warmup_percent=0.0):
+                 lr_scheduler='constant', warmup_percent=0.0, sigmoid_temperature=10):
         train_dl = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         dev_dl = DataLoader(dataset['dev'], batch_size=batch_size)
         test_dl = DataLoader(dataset['test'], batch_size=batch_size)
@@ -18,14 +18,18 @@ class STSTrainer(Trainer):
                          num_epochs=num_epochs, optimizer=optimizer, lr_scheduler=lr_scheduler,
                          warmup_percent=warmup_percent, loss_function=loss_function)
 
+        self.sigmoid_temperature = sigmoid_temperature
+        self.sigmoid = nn.Sigmoid()
+
     def predict_batch(self, batch, flip=True):
         if flip:
             N = len(batch['sentence1']) // 2
             flipped1 = batch['sentence1'][:N] + batch['sentence2'][N:]
             flipped2 = batch['sentence2'][:N] + batch['sentence1'][N:]
-            outputs = self.model.predict_batch(flipped1, flipped2)
+            logits = self.model.predict_batch(flipped1, flipped2)
         else:
-            outputs = self.model.predict_batch(batch['sentence1'], batch['sentence2'])
+            logits = self.model.predict_batch(batch['sentence1'], batch['sentence2'])
+        outputs = self.sigmoid(logits / self.sigmoid_temperature)
         targets = batch['similarity_score'].float() / 5.0
         return outputs, targets
 

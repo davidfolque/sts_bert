@@ -10,8 +10,8 @@ def select_from_state_dict(state_dict, key):
 
 class CrossEncoder(nn.Module):
 
-    def __init__(self, hidden_layer_size=200, sigmoid_temperature=10, mode='cls-pooling',
-                 pretrained_nli_label_num=3, device='cuda', toy_model=False):
+    def __init__(self, hidden_layer_size=200, mode='cls-pooling', pretrained_nli_label_num=3,
+                 device='cuda', toy_model=False):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
@@ -66,8 +66,6 @@ class CrossEncoder(nn.Module):
 
         if self.mode != 'nli-head-3rd-component':
             self.output_layer = nn.Linear(output_layer_in_size, 1)
-        self.sigmoid = nn.Sigmoid()
-        self.sigmoid_temperature = sigmoid_temperature
         self.device = device
         self.to(device)
 
@@ -93,7 +91,6 @@ class CrossEncoder(nn.Module):
         else:
             x = self.output_layer(x)
 
-        x = self.sigmoid(x / self.sigmoid_temperature)
         return x
 
     def predict_batch(self, sentence1, sentence2, flip=False):

@@ -37,6 +37,7 @@ class Trainer:
 
         # For early stopping.
         self.best_dev_performance = -np.inf
+        self.best_model_epoch = 0
         self.best_model = None
 
         # Debug function to execute after each step.
@@ -68,7 +69,7 @@ class Trainer:
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
-    def train(self, disable_progress_bar, eval_zero_shot=False):
+    def train(self, disable_progress_bar, eval_zero_shot=False, early_stopping=True):
         for epoch in range(-1, self.num_epochs):
 
             if epoch >= 0:
@@ -94,9 +95,15 @@ class Trainer:
                 if dev_performance > self.best_dev_performance:
                     self.best_model = self.model.state_dict()
                     self.best_dev_performance = dev_performance
+                    self.best_model_epoch = epoch
                     ast = '*'
                 print('Epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                     epoch + 1, dev_loss, dev_performance) + ast)
+
+                if early_stopping and epoch + 1 >= (self.num_epochs + 1) // 2 and \
+                        self.best_model_epoch <= epoch - 2:
+                    print('Early stopping')
+                    break
 
         self.model.load_state_dict(self.best_model)
 

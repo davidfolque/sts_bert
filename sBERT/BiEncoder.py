@@ -34,7 +34,6 @@ class BiEncoder(nn.Module):
             self.cos_sim = nn.CosineSimilarity(dim=1, eps=1e-6)
         elif self.head == 'extra-head-sub':
             self.extra_head = nn.Linear(self.bert.config.hidden_size * 3, 1)
-            self.sigmoid = nn.Sigmoid()
         else:
             assert(self.head == 'none')
 
@@ -58,7 +57,7 @@ class BiEncoder(nn.Module):
             else:
                 assert(self.head == 'extra-head-sub')
                 x = torch.cat((x[:n], x[n:], torch.abs(x[:n] - x[n:])), dim=1)
-                x = self.sigmoid(self.extra_head(x)).squeeze(1)
+                x = self.extra_head(x).squeeze(1)
 
         return x
 
