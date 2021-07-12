@@ -27,13 +27,6 @@ def run_experiment(config):
     encoder = config['encoder']
     pretrained_model = config['pretrained_model']
 
-    from time import sleep
-    import random
-    tm = random.randint(a=10, b=15)
-    print('Waiting', tm)
-    sleep(tm)
-    return (tm, tm), torch.nn.Linear(1,1), encoder+'_'+pretrained_model
-
     if encoder == 'cross':
         if pretrained_model in ['bert', 'sts']:
             sts_model = CrossEncoder(mode='cls-pooling-hidden')
@@ -96,8 +89,7 @@ grid = {
     # 'mode': ['replace-head', 'shift-bias', 'additional-head'],
     # 'mode': 'shift-bias',
     # 'train_size': 2000,
-    #'train_size': [10, 50, 100, 500, 1000, 2000, 5000, 10000],
-    'train_size': 2000,
+    'train_size': [10, 50, 100, 500, 1000, 2000, 5000, 10000],
     'train_subset_seed': [1, 2, 3]
 }
 

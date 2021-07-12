@@ -60,6 +60,9 @@ class WikiQABinaryClassifierTrainer(Trainer):
     def performance(pred, gold):
         # F1
 
+        if type(gold) == list:
+            gold = np.array(gold)
+            pred = np.array(pred)
         cm = confusion_matrix(gold[:, 0], pred > 0.5)
         print(pd.DataFrame(cm, columns=['Predicted-', 'Predicted+'], index=['Gold-', 'Gold+']))
         precision, recall, f1, support = precision_recall_fscore_support(gold[:, 0], pred > 0.5,
