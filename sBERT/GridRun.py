@@ -5,6 +5,7 @@ import pandas as pd
 import resource
 import os.path
 import re
+from filelock import FileLock
 
 
 def random_sample(n, k, seed):
@@ -55,9 +56,24 @@ def construct_query(d):
         query += ' and '
     return query[:-5]
 
+def load_last_results_from_disk(dir_path):
+    results_files = [filename[8:-4] for filename in os.listdir(dir_path) if
+                     re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
+
+    if len(results_files) == 0:
+        print('Did not load any previous results')
+        return None
+
+    results_files.sort()
+    load_path = dir_path + '/results_' + results_files[-1] + '.csv'
+    print('Loading previous results from ' + load_path)
+    return pd.read_csv(load_path)
+
 
 class GridRun():
-    def __init__(self, run_experiment_fnc, results_dir=None, experiment_name=None):
+    def __init__(self, run_experiment_fnc, results_dir=None, experiment_name=None, task_id=None):
+
+        self.task_id = task_id
 
         if results_dir is None or experiment_name is None:
             print('Either results_dir or experiment_name is None: won\'t store the results')
@@ -68,19 +84,16 @@ class GridRun():
         else:
             self.experiment_dir = results_dir + '/' + experiment_name + '/'
             check_create_dir(self.experiment_dir)
-            check_create_dir(self.experiment_dir + 'backup/')
 
-            results_files = [filename[8:-4] for filename in os.listdir(self.experiment_dir) if
-                             re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
-
-            if len(results_files) == 0:
-                print('Did not load any previous results')
-                self.df_results = pd.DataFrame()
+            if self.task_id is None:
+                self.backup_dir = self.experiment_dir + 'backup/'
             else:
-                results_files.sort()
-                load_path = self.experiment_dir + 'results_' + results_files[-1] + '.csv'
-                print('Loading previous results from ' + load_path)
-                self.df_results = pd.read_csv(load_path)
+                self.backup_dir = self.experiment_dir + 'backup_{}/'.format(task_id)
+            check_create_dir(self.backup_dir)
+
+            self.df_results = load_last_results_from_disk(self.experiment_dir)
+            if self.df_results is None:
+                self.df_results = pd.DataFrame()
 
         self.run_experiment_fnc = run_experiment_fnc
 
@@ -134,7 +147,11 @@ class GridRun():
             torch.cuda.empty_cache()
 
             if save_file_name is not None:
-                self.df_results.to_csv(self.experiment_dir + save_file_name + '.csv', index=False)
-                self.df_results.to_csv(self.experiment_dir + 'backup/' + save_file_name + '.csv',
-                                       index=False)
-
+                self.df_results.to_csv(self.backup_dir + save_file_name + '.csv', index=False)
+                with FileLock(self.experiment_dir + save_file_name + '.csv.lock'):
+                    try:
+                        print('Lock acquired.')
+                        self.df_results.to_csv(self.experiment_dir + save_file_name + '.csv',
+                                               index=False)
+                    finally:
+                        print('Unlocking lock.')

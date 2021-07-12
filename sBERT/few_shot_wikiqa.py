@@ -23,7 +23,9 @@ original_nli_sts_bi_model_path = \
 # Train on WikiQA.
 
 def run_experiment(config):
-    encoder, pretrained_model = config['pretrained_model'].split('/')
+    # encoder, pretrained_model = config['pretrained_model'].split('/')
+    encoder = config['encoder']
+    pretrained_model = config['pretrained_model']
 
     if encoder == 'cross':
         if pretrained_model in ['bert', 'sts']:
@@ -77,13 +79,13 @@ def run_experiment(config):
 
 
 grid = {
-    'num_epochs': 1,  # Size 5000 => 50s per epoch????
+    'num_epochs': 10,  # Size 5000 => 50s per epoch????
     'batch_size': 16,
     'lr': 2e-5,
+    'encoder': ['cross', 'bi'],
     'pretrained_model': [
-        ['cross/bert', 'cross/nli'], ['cross/sts', 'cross/nli-sts'],
-        ['bi/bert', 'bi/nli'], ['bi/sts', 'bi/nli-sts']],
-    'sample_selection': 'downsampling',
+        'bert', 'nli', 'sts', 'nli-sts'],
+    'sample_selection': ['downsampling', 'all-scaled', 'all-unscaled'],
     # 'mode': ['replace-head', 'shift-bias', 'additional-head'],
     # 'mode': 'shift-bias',
     # 'train_size': 2000,
