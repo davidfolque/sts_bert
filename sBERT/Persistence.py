@@ -7,6 +7,12 @@ from filelock import FileLock
 from collections import namedtuple
 
 
+def check_create_dir(path):
+    if not os.path.isdir(path):
+        print('Creating dir ' + path)
+        os.mkdir(path)
+
+
 def load_last_results_from_disk(dir_path):
     results_files = [filename[8:-4] for filename in os.listdir(dir_path) if
                      re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
@@ -40,17 +46,20 @@ class Persistence:
             self.backup_dir = self.experiment_dir + 'backup_{}/'.format(self.array_info.task_id)
         check_create_dir(self.backup_dir)
 
-        self.results = load_last_results_from_disk(self.experiment_dir)
-        if self.results is None:
-            self.results = pd.DataFrame()
-
         self.save_file_name = None
+        
+    def load_results(self):
+        results = load_last_results_from_disk(self.experiment_dir)
+        if results is None:
+            results = pd.DataFrame()
+        return results
+
 
     @staticmethod
     def create_save_file_name(execution_name):
         time_string = datetime.now().strftime("%y%m%d_%H%M%S")
         save_file_name = 'results_' + time_string
-        if self.execution_name is not None:
+        if execution_name is not None:
             save_file_name += '_' + execution_name
         save_file_name += '.csv'
         return save_file_name
@@ -58,7 +67,7 @@ class Persistence:
     # Recovers the save_file_name. If none is found, creates a new one and stores it.
     def set_save_file_name(self):
         if self.array_info is None:
-            self.save_file_name = create_save_file_name(self.execution_name)
+            self.save_file_name = self.create_save_file_name(self.execution_name)
         else:
             self.locks_dir = self.experiment_dir + 'locks/'
             check_create_dir(self.locks_dir)
@@ -68,7 +77,7 @@ class Persistence:
                     with open(array_job_file, 'r') as file:
                         self.save_file_name = file.read()
                 else:
-                    self.save_file_name = create_save_file_name(self.execution_name)
+                    self.save_file_name = self.create_save_file_name(self.execution_name)
                     with open(array_job_file, 'w') as file:
                         file.write(self.save_file_name)
         print('Results will be stored in file ' + self.save_file_name)
@@ -77,17 +86,16 @@ class Persistence:
         if self.save_file_name is None:
             self.set_save_file_name()
 
-        self.df_results.to_csv(self.backup_dir + self.save_file_name, index=False)
+        results.to_csv(self.backup_dir + self.save_file_name, index=False)
         if self.array_info is None:
-            self.df_results.to_csv(self.experiment_dir + self.save_file_name, index=False)
+            results.to_csv(self.experiment_dir + self.save_file_name, index=False)
         else:
             with FileLock(self.experiment_dir + self.save_file_name + '.lock'):
                 try:
                     print('Lock acquired.')
-                    self.df_results.to_csv(self.experiment_dir + self.save_file_name,
-                                           index=False)
+                    results.to_csv(self.experiment_dir + self.save_file_name, index=False)
                 finally:
-                    print('Unlocking lock.')
+                    print('Releasing lock.')
 
     def save_model(self, model, model_name):
         final_file_name = self.experiment_dir + self.save_file_name[:-4] + '_' + model_name + \

@@ -72,24 +72,10 @@ class GridRun():
             self.persistence = Persistence(experiment_name=experiment_name,
                                             execution_name=execution_name, array_info=array_info,
                                             root_dir=root_dir)
-            self.df_results = save_results.results
+            self.df_results = self.persistence.load_results()
 
 
     def run(self, grid, ignore_previous_results=False, save_best=False):
-        save_file_name = None
-        if self.experiment_dir is not None:
-            time_string = datetime.now().strftime("%y%m%d_%H%M%S")
-            save_file_name = 'results_' + time_string
-            if exec_name is not None:
-                save_file_name += '_' + exec_name
-            print('Results will be stored in file ' + save_file_name)
-        else:
-            if exec_name is not None:
-                raise Exception('exec_name is set but results_dir and experiment_name are not.')
-            if save_best:
-                raise Exception('save_best is True but results_dir and experiment_name are None.')
-            print('Results won\'t be saved')
-
         best_scores = {}
         for config in construct_configs(grid):
             if len(self.df_results) > 0:
@@ -122,8 +108,8 @@ class GridRun():
             # Update and store best model.
             if save_best and (model_save_name not in best_scores or \
                               best_scores[model_save_name] < result):
-                best_scores[save_name] = result
-                self.persistence.save_model(model.state_dict(), model_save_name)
+                best_scores[model_save_name] = result
+                self.persistence.save_model(model, model_save_name)
 
             del model
             torch.cuda.empty_cache()

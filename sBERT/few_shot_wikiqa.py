@@ -27,12 +27,12 @@ def run_experiment(config):
     encoder = config['encoder']
     pretrained_model = config['pretrained_model']
 
-    import time.sleep as sleep
+    from time import sleep
     import random
     tm = random.randint(a=10, b=15)
     print('Waiting', tm)
     sleep(tm)
-    return tm, torch.nn.Linear(1,1), encoder+'_'+pretrained_model
+    return (tm, tm), torch.nn.Linear(1,1), encoder+'_'+pretrained_model
 
     if encoder == 'cross':
         if pretrained_model in ['bert', 'sts']:
@@ -112,7 +112,7 @@ else:
     array_info = None
 
 grid_run = GridRun(run_experiment, experiment_name='example', array_info=array_info,
-                   exec_name='hello')
+                   execution_name='hello')
 grid_run.run(grid, save_best=True)
 
 
