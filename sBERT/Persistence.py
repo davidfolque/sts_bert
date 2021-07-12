@@ -13,16 +13,17 @@ def check_create_dir(path):
         os.mkdir(path)
 
 
-def load_last_results_from_disk(dir_path):
-    results_files = [filename[8:-4] for filename in os.listdir(dir_path) if
-                     re.match(r'^results_\d{6}_\d{6}.*\.csv$', filename)]
+def load_last_results_from_disk(dir_path, current_file=None):
+    results_files = [filename for filename in os.listdir(dir_path) if
+                     re.match(r'^results_\d{6}_\d{6}.*\.csv$',
+                              filename) and filename != current_file]
 
     if len(results_files) == 0:
         print('Did not load any previous results')
         return None
 
     results_files.sort()
-    load_path = dir_path + '/results_' + results_files[-1] + '.csv'
+    load_path = dir_path + '/' + results_files[-1]
     print('Loading previous results from ' + load_path)
     return pd.read_csv(load_path)
 
@@ -46,10 +47,10 @@ class Persistence:
             self.backup_dir = self.experiment_dir + 'backup_{}/'.format(self.array_info.task_id)
         check_create_dir(self.backup_dir)
 
-        self.save_file_name = None
+        self.set_save_file_name()
         
     def load_results(self):
-        results = load_last_results_from_disk(self.experiment_dir)
+        results = load_last_results_from_disk(self.experiment_dir, current_file=self.save_file_name)
         if results is None:
             results = pd.DataFrame()
         return results
@@ -83,9 +84,6 @@ class Persistence:
         print('Results will be stored in file ' + self.save_file_name)
 
     def save_results(self, results):
-        if self.save_file_name is None:
-            self.set_save_file_name()
-
         results.to_csv(self.backup_dir + self.save_file_name, index=False)
         if self.array_info is None:
             results.to_csv(self.experiment_dir + self.save_file_name, index=False)
