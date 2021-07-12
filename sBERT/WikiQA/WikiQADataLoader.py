@@ -131,6 +131,9 @@ class WikiQADataLoader:
         current_size = 0
         warning_issued = False
         for idx in question_perm:
+            # If the question itself doesn't fit the total training dataset size, skip it.
+            if all_questions_len[idx] > self.size:
+                continue
             if current_size + all_questions_len[idx] > self.size:
                 break
             if not warning_issued and all_questions_len[idx] > self.batch_size:
