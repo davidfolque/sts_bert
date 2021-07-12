@@ -7,6 +7,22 @@ from filelock import FileLock
 from collections import namedtuple
 
 
+class DeactivableLock:
+    def __init__(self, file, disable=False):
+        self.lock = None if disable else FileLock(file)
+        self.file = file
+
+    def __enter__(self):
+        if self.lock:
+            print('Aqcuiring lock for file ' + self.file)
+            self.lock.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.lock:
+            print('Releasing lock for file ' + self.file)
+            self.lock.release()
+
+
 def check_create_dir(path):
     if not os.path.isdir(path):
         print('Creating dir ' + path)
@@ -83,17 +99,27 @@ class Persistence:
                         file.write(self.save_file_name)
         print('Results will be stored in file ' + self.save_file_name)
 
-    def save_results(self, results):
-        results.to_csv(self.backup_dir + self.save_file_name, index=False)
-        if self.array_info is None:
-            results.to_csv(self.experiment_dir + self.save_file_name, index=False)
+
+    @staticmethod
+    def append_result_inner(dict_result, file_name):
+        if os.path.isfile(file_name):
+            results = pd.read_csv(file_name)
         else:
-            with FileLock(self.experiment_dir + self.save_file_name + '.lock'):
-                try:
-                    print('Lock acquired.')
-                    results.to_csv(self.experiment_dir + self.save_file_name, index=False)
-                finally:
-                    print('Releasing lock.')
+            results = pd.DataFrame()
+        results.append(dict_result, ignore_index=True)
+        results.to_csv(backup_file_name, index=False)
+        return results
+
+    def append_result(self, dict_result):
+        # Read, update and write backup.
+        self.append_result_inner(dict_result, self.backup_dir + self.save_file_name)
+
+        # Read, update and write data, possibly taking a lock.
+        save_file_name = self.experiment_dir + self.save_file_name
+        with DeactivableLock(save_file_name + '.lock', disable=self.array_info is None):
+            return self.append_result_inner(dict_result, save_file_name)
+
+
 
     def save_model(self, model, model_name):
         final_file_name = self.experiment_dir + self.save_file_name[:-4] + '_' + model_name + \

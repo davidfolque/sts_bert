@@ -98,12 +98,9 @@ class GridRun():
             print('Test score: {:.4f}'.format(result))
             print_stats()
 
-            # Update results.
-            self.df_results = self.df_results.append({**config, 'test_score': result},
-                                                     ignore_index=True)
             # Store results.
             if self.persistence is not None:
-                self.persistence.save_results(self.df_results)
+                self.df_results = self.persistence.append_result({{**config, 'test_score': result}})
 
             # Update and store best model.
             if save_best and (model_save_name not in best_scores or \
