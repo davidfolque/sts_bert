@@ -1,5 +1,5 @@
 import torch
-
+import os
 from Datasets import load_wiki_qa
 from WikiQA.WikiQAClassifierTrainer import WikiQAClassifierTrainer
 from WikiQA.WikiQABinaryClassifierTrainer import WikiQABinaryClassifierTrainer
@@ -48,9 +48,9 @@ def run_experiment(config):
     else:
         assert (encoder == 'bi')
         if pretrained_model == 'nli':
-            paws_model = BiEncoder(mode='nli-cls-pooling', head='extra-head-sub')
+            wiki_qa_model = BiEncoder(mode='nli-cls-pooling', head='extra-head-sub')
         else:
-            paws_model = BiEncoder(mode='base-cls-pooling', head='extra-head-sub')
+            wiki_qa_model = BiEncoder(mode='base-cls-pooling', head='extra-head-sub')
             if pretrained_model != 'bert':
                 if pretrained_model == 'nli-sts':
                     model_path = original_nli_sts_bi_model_path
@@ -58,7 +58,7 @@ def run_experiment(config):
                     assert pretrained_model == 'sts'
                     model_path = original_sts_bi_model_path
                 print('Loading pretrained model from ' + model_path)
-                load_result = paws_model.load_state_dict(torch.load(model_path), strict=False)
+                load_result = wiki_qa_model.load_state_dict(torch.load(model_path), strict=False)
 
                 # Assert that the only keys missing are extra head.
                 assert (load_result.missing_keys == ['extra_head.weight', 'extra_head.bias'])
