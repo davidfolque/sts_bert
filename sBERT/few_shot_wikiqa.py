@@ -103,9 +103,9 @@ if n_tasks > 1:
 else:
     array_info = None
 
-grid_run = GridRun(run_experiment, experiment_name='example', array_info=array_info,
-                   execution_name='hello')
-grid_run.run(grid, save_best=True)
+grid_run = GridRun(run_experiment, experiment_name='few_shot_wikiqa_array', array_info=array_info,
+                   execution_name='long_experiments')
+grid_run.run(grid, save_best=False)
 
 
 

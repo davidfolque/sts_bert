@@ -70,10 +70,9 @@ class GridRun():
             self.df_results = pd.DataFrame()
         else:
             self.persistence = Persistence(experiment_name=experiment_name,
-                                            execution_name=execution_name, array_info=array_info,
-                                            root_dir=root_dir)
-            self.df_results = self.persistence.load_results()
-
+                                           execution_name=execution_name, array_info=array_info,
+                                           root_dir=root_dir)
+            self.df_results = self.persistence.init_and_load_previous_results()
 
     def run(self, grid, ignore_previous_results=False, save_best=False):
         best_scores = {}
@@ -100,7 +99,7 @@ class GridRun():
 
             # Store results.
             if self.persistence is not None:
-                self.df_results = self.persistence.append_result({{**config, 'test_score': result}})
+                self.df_results = self.persistence.append_result({**config, 'test_score': result})
 
             # Update and store best model.
             if save_best and (model_save_name not in best_scores or \
