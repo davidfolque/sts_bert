@@ -105,7 +105,8 @@ class WikiQAAllDLIterator:
 
 
 class WikiQADataLoader:
-    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
+    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0,
+                 ensure_positive=False):
         self.dataset = dataset
         self.batch_size = batch_size
         self.size = len(dataset) if size is None else size
@@ -131,16 +132,25 @@ class WikiQADataLoader:
         current_size = 0
         warning_issued = False
         for idx in question_perm:
-            # If the question itself doesn't fit the total training dataset size, skip it.
-            if all_questions_len[idx] > self.size:
+            question_pos, question_len = all_questions_idx[idx], all_questions_len[idx]
+            if question_len > self.size:
+                print('Skipping question too long')
                 continue
-            if current_size + all_questions_len[idx] > self.size:
+            if current_size + question_len > self.size:
                 break
-            if not warning_issued and all_questions_len[idx] > self.batch_size:
+            if ensure_positive:
+                # If this question won't add any positive example, skip it.
+                # Otherwise, stop looking for positive examples.
+                some_is_positive = any(
+                    [self.dataset[question_pos + i]['label'] for i in range(question_len)])
+                if not some_is_positive:
+                    continue
+                ensure_positive = False
+            if not warning_issued and question_len > self.batch_size:
                 print('Warning: Question has more answers than the batch size')
                 warning_issued = True
-            self.questions_idx.append((all_questions_idx[idx], all_questions_len[idx]))
-            current_size += all_questions_len[idx]
+            self.questions_idx.append((question_pos, question_len))
+            current_size += question_len
 
 
 class WikiQAQuestionsDataLoader(WikiQADataLoader):
@@ -158,7 +168,7 @@ class WikiQAQuestionsDataLoader(WikiQADataLoader):
 class WikiQAPairsDataLoader(WikiQADataLoader):
     def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed)
+                         seed=seed, ensure_positive=True)
 
         self.correct_answers = []
         self.incorrect_answers = []
@@ -184,7 +194,7 @@ class WikiQAPairsDataLoader(WikiQADataLoader):
 class WikiQAAllDataLoader(WikiQADataLoader):
     def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed)
+                         seed=seed, ensure_positive=True)
 
         self.all_answers = []
         for i in range(len(self.questions_idx)):

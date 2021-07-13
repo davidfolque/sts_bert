@@ -92,6 +92,7 @@ class GridRun():
             print('----------\nRUN CONFIG\n----------')
             for key, value in config.items():
                 print(key, ': ', value)
+            print('----------')
             score_and_loss, model, model_save_name = self.run_experiment_fnc(config)
             result = score_and_loss[0]
             print('Test score: {:.4f}'.format(result))

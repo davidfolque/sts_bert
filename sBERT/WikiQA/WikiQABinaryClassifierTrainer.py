@@ -63,7 +63,7 @@ class WikiQABinaryClassifierTrainer(Trainer):
         if type(gold) == list:
             gold = np.array(gold)
             pred = np.array(pred)
-        cm = confusion_matrix(gold[:, 0], pred > 0.5)
+        cm = confusion_matrix(gold[:, 0], pred > 0.5, labels=[0, 1])
         print(pd.DataFrame(cm, columns=['Predicted-', 'Predicted+'], index=['Gold-', 'Gold+']))
         precision, recall, f1, support = precision_recall_fscore_support(gold[:, 0], pred > 0.5,
                                                                          average='binary')

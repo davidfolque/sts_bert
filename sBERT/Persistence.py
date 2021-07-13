@@ -81,8 +81,7 @@ class Persistence:
         check_create_dir(self.backup_dir)
 
     def load_previous_results_and_save(self):
-        previous_results = load_last_results_from_disk(self.experiment_dir,
-                                                       current_file=self.save_file_name)
+        previous_results = load_last_results_from_disk(self.experiment_dir)
         previous_results.to_csv(self.experiment_dir + self.save_file_name, index=False)
         return previous_results
 
@@ -100,13 +99,14 @@ class Persistence:
                 if os.path.isfile(array_job_file):
                     with open(array_job_file, 'r') as file:
                         self.save_file_name = file.read()
-                        previous_results = load_possibly_empty_file(self.save_file_name)
+                        previous_results = load_possibly_empty_file(
+                            self.experiment_dir + self.save_file_name)
                 else:
                     self.save_file_name = self.create_save_file_name(self.execution_name)
                     with open(array_job_file, 'w') as file:
                         file.write(self.save_file_name)
                     previous_results = self.load_previous_results_and_save()
-        print('Results will be stored in file ' + self.save_file_name)
+        print('Results will be stored in file ' + self.experiment_dir + self.save_file_name)
 
         # Save empty file in backup.
         pd.DataFrame().to_csv(self.backup_dir + self.save_file_name, index=False)
