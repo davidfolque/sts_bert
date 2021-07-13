@@ -83,7 +83,7 @@ class Persistence:
     def load_previous_results_and_save(self):
         previous_results = load_last_results_from_disk(self.experiment_dir,
                                                        current_file=self.save_file_name)
-        previous_results.to_csv(self.save_file_name, index=False)
+        previous_results.to_csv(self.experiment_dir + self.save_file_name, index=False)
         return previous_results
 
     def init_and_load_previous_results(self):
@@ -107,6 +107,9 @@ class Persistence:
                         file.write(self.save_file_name)
                     previous_results = self.load_previous_results_and_save()
         print('Results will be stored in file ' + self.save_file_name)
+
+        # Save empty file in backup.
+        pd.DataFrame().to_csv(self.backup_dir + self.save_file_name, index=False)
         return previous_results
 
     @staticmethod
