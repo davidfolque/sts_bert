@@ -105,12 +105,13 @@ class WikiQAAllDLIterator:
 
 
 class WikiQADataLoader:
-    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0,
-                 ensure_positive=False):
+    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0, restrict_pos='none'):
         self.dataset = dataset
         self.batch_size = batch_size
         self.size = len(dataset) if size is None else size
         self.shuffle = shuffle
+        assert restrict_pos in ['none', 'one', 'all']
+        self.restrict_pos = restrict_pos
 
         all_questions_idx = []
         last_question_id = ''
@@ -138,14 +139,15 @@ class WikiQADataLoader:
                 continue
             if current_size + question_len > self.size:
                 break
-            if ensure_positive:
-                # If this question won't add any positive example, skip it.
-                # Otherwise, stop looking for positive examples.
+            if self.restrict_pos != 'none':
                 some_is_positive = any(
                     [self.dataset[question_pos + i]['label'] for i in range(question_len)])
                 if not some_is_positive:
                     continue
-                ensure_positive = False
+                if self.restrict_pos == 'one':
+                    # If we have found a question with positive answers, we are done.
+                    self.restrict_pos = 'none'
+
             if not warning_issued and question_len > self.batch_size:
                 print('Warning: Question has more answers than the batch size')
                 warning_issued = True
@@ -154,6 +156,10 @@ class WikiQADataLoader:
 
 
 class WikiQAQuestionsDataLoader(WikiQADataLoader):
+    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
+        super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
+                         seed=seed, restrict_pos='all')
+
     def __iter__(self):
         return WikiQAQuestionsDLIterator(dataset=self.dataset, questions_idx=self.questions_idx,
                                          batch_size=self.batch_size, shuffle=self.shuffle)
@@ -168,7 +174,7 @@ class WikiQAQuestionsDataLoader(WikiQADataLoader):
 class WikiQAPairsDataLoader(WikiQADataLoader):
     def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed, ensure_positive=True)
+                         seed=seed, restrict_pos='one')
 
         self.correct_answers = []
         self.incorrect_answers = []
@@ -194,7 +200,7 @@ class WikiQAPairsDataLoader(WikiQADataLoader):
 class WikiQAAllDataLoader(WikiQADataLoader):
     def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed, ensure_positive=True)
+                         seed=seed, restrict_pos='one')
 
         self.all_answers = []
         for i in range(len(self.questions_idx)):

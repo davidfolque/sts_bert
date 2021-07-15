@@ -2,9 +2,11 @@ from Trainer import Trainer, tolist
 from WikiQA.WikiQADataLoader import WikiQAQuestionsDataLoader
 from transformers import AdamW
 import torch
+from sklearn.metrics import average_precision_score
+import numpy as np
 
 
-class WikiQAClassifierTrainer(Trainer):
+class WikiQARankingTrainer(Trainer):
     def __init__(self, model, dataset, trainset_size, trainset_seed, num_epochs, batch_size=16,
                  lr=2e-5, devset_size=None):
         train_dl = WikiQAQuestionsDataLoader(dataset['train'], batch_size=batch_size,
@@ -51,20 +53,37 @@ class WikiQAClassifierTrainer(Trainer):
     @staticmethod
     def performance(pred, gold):
         pred = tolist(pred)
-        gold = tolist(gold)
-        correct = 0
-        current_id = -1
-        currently_correct = False
-        current_best_prob = -1
+        gold = np.array(tolist(gold))
+        question_start = 0
+        current_id = 0
+        ap_sum = 0.0
+        num_questions = 0
         for i in range(len(pred)):
-            prob = pred[i]
-            label, question_id = gold[i]
-            if prob > current_best_prob:
-                current_best_prob = prob
-                currently_correct = label == 1
+            question_id = gold[i, 1]
             if i == len(pred) - 1 or question_id != gold[i + 1][1]:
-                correct += currently_correct
-                current_id += 1
-                currently_correct = True
-                current_best_prob = -1
-        return correct / current_id
+                ap_sum += average_precision_score(gold[question_start:(i + 1), 0],
+                                                  pred[question_start:(i + 1)])
+                question_start = i + 1
+                num_questions += 1
+        return ap_sum / num_questions
+
+    # @staticmethod
+    # def performance(pred, gold):
+    #     pred = tolist(pred)
+    #     gold = tolist(gold)
+    #     correct = 0
+    #     current_id = -1
+    #     currently_correct = False
+    #     current_best_prob = -1
+    #     for i in range(len(pred)):
+    #         prob = pred[i]
+    #         label, question_id = gold[i]
+    #         if prob > current_best_prob:
+    #             current_best_prob = prob
+    #             currently_correct = label == 1
+    #         if i == len(pred) - 1 or question_id != gold[i + 1][1]:
+    #             correct += currently_correct
+    #             current_id += 1
+    #             currently_correct = True
+    #             current_best_prob = -1
+    #     return correct / current_id
