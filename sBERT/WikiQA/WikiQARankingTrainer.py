@@ -9,12 +9,12 @@ import numpy as np
 class WikiQARankingTrainer(Trainer):
     def __init__(self, model, dataset, trainset_size, trainset_seed, num_epochs, batch_size=16,
                  lr=2e-5, devset_size=None):
-        train_dl = WikiQAQuestionsDataLoader(dataset['train'], batch_size=batch_size,
+        train_dl = WikiQAQuestionsDataLoader(dataset['train'], batch_size=batch_size, is_test=False,
                                              size=trainset_size, shuffle=True, seed=trainset_seed)
         dev_dl = WikiQAQuestionsDataLoader(dataset['validation'], batch_size=batch_size,
-                                           size=devset_size, shuffle=devset_size is not None,
-                                           seed=trainset_seed)
-        test_dl = WikiQAQuestionsDataLoader(dataset['test'], batch_size=batch_size)
+                                           is_test=True, size=devset_size,
+                                           shuffle=devset_size is not None, seed=trainset_seed)
+        test_dl = WikiQAQuestionsDataLoader(dataset['test'], batch_size=batch_size, is_test=True)
         optimizer = AdamW(model.parameters(), lr=lr)
 
         def loss_fnc(outputs, targets):

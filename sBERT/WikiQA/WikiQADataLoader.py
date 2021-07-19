@@ -108,9 +108,8 @@ class WikiQADataLoader:
     def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0, restrict_pos='none'):
         self.dataset = dataset
         self.batch_size = batch_size
-        self.size = len(dataset) if size is None else size
         self.shuffle = shuffle
-        assert restrict_pos in ['none', 'one', 'all']
+        assert restrict_pos in ['none', 'one', 'all', 'all-also-neg']
         self.restrict_pos = restrict_pos
 
         all_questions_idx = []
@@ -130,23 +129,28 @@ class WikiQADataLoader:
             question_perm = range(len(all_questions_idx))
 
         self.questions_idx = []
+        size = len(dataset) if size is None else size
         current_size = 0
         warning_issued = False
         for idx in question_perm:
             question_pos, question_len = all_questions_idx[idx], all_questions_len[idx]
-            if question_len > self.size:
+            if question_len > size:
                 print('Skipping question too long')
                 continue
-            if current_size + question_len > self.size:
-                break
             if self.restrict_pos != 'none':
-                some_is_positive = any(
-                    [self.dataset[question_pos + i]['label'] for i in range(question_len)])
+                all_labels = [self.dataset[question_pos + i]['label'] for i in range(question_len)]
+                some_is_positive = any(all_labels)
                 if not some_is_positive:
                     continue
+                if self.restrict_pos == 'all-also-neg':
+                    all_are_positive = all(all_labels)
+                    if all_are_positive:
+                        continue
                 if self.restrict_pos == 'one':
                     # If we have found a question with positive answers, we are done.
                     self.restrict_pos = 'none'
+            if current_size + question_len > size:
+                break
 
             if not warning_issued and question_len > self.batch_size:
                 print('Warning: Question has more answers than the batch size')
@@ -154,11 +158,14 @@ class WikiQADataLoader:
             self.questions_idx.append((question_pos, question_len))
             current_size += question_len
 
+        self.final_size = current_size
+        print('Dataset length: {}, with {} questions'.format(self.final_size, len(self.questions_idx)))
+
 
 class WikiQAQuestionsDataLoader(WikiQADataLoader):
-    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
+    def __init__(self, dataset, batch_size, is_test, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed, restrict_pos='all')
+                         seed=seed, restrict_pos='all-also-neg' if is_test else 'all')
 
     def __iter__(self):
         return WikiQAQuestionsDLIterator(dataset=self.dataset, questions_idx=self.questions_idx,
@@ -167,8 +174,9 @@ class WikiQAQuestionsDataLoader(WikiQADataLoader):
     def __len__(self):
         if 'warning_issued' not in dir(self):
             print('Warning: WikiQAQuestionsDataLoader::__len__ called, returning a lower bound.')
+            # print(self.final_size, self.batch_size, len(self.questions_idx))
             self.warning_issued = True
-        return self.size // self.batch_size
+        return self.final_size // self.batch_size
 
 
 class WikiQAPairsDataLoader(WikiQADataLoader):

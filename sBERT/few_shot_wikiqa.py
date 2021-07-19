@@ -1,7 +1,7 @@
 import torch
 import os
 from Datasets import load_wiki_qa
-from WikiQA.WikiQAClassifierTrainer import WikiQAClassifierTrainer
+from WikiQA.WikiQARankingTrainer import WikiQARankingTrainer
 from WikiQA.WikiQABinaryClassifierTrainer import WikiQABinaryClassifierTrainer
 from CrossEncoder import CrossEncoder, CrossEncoderPretrained
 from BiEncoder import BiEncoder

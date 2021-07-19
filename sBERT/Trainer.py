@@ -40,8 +40,9 @@ class Trainer:
         self.best_model_epoch = 0
         self.best_model = None
 
-        # Debug function to execute after each step.
+        # Debug functions to execute after each step/epoch.
         self.debug_step_function = None
+        self.debug_epoch_function = None
 
     # Override
     def predict_batch(self, batch):
@@ -101,6 +102,9 @@ class Trainer:
                     # Store loss for evaluation. Storing sum instead of mean.
                     train_loss += loss.item() * batch_gold.shape[0]
 
+                    if self.debug_step_function is not None:
+                        self.debug_step_function(middle=True)
+
                     # Backward pass.
                     loss.backward()
 
@@ -109,12 +113,15 @@ class Trainer:
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step()
                     if self.debug_step_function is not None:
-                        self.debug_step_function()
+                        self.debug_step_function(middle=False)
 
                 # Print evaluation.
                 train_performance = self.performance(train_pred, train_gold)
                 print('Train epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                     epoch + 1, train_loss / len(batch_pred), train_performance))
+
+                if self.debug_epoch_function is not None:
+                    self.debug_epoch_function()
 
             if epoch >= 0 or eval_zero_shot:
                 self.model.eval()
