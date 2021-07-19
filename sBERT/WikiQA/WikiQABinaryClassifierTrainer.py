@@ -72,3 +72,24 @@ class WikiQABinaryClassifierTrainer(Trainer):
 
         # Accuracy
         # return ((pred >= 0.5) == (gold[:, 0] >= 0.5)).mean()
+
+    # @staticmethod
+    # def performance(pred, gold):
+    #     pred = np.array(tolist(pred))
+    #     gold = np.array(tolist(gold))
+    #
+    #     cm = confusion_matrix(gold[:, 0], pred > 0.5, labels=[0, 1])
+    #     print(pd.DataFrame(cm, columns=['Predicted-', 'Predicted+'], index=['Gold-', 'Gold+']),
+    #           flush=True)
+    #
+    #     question_start = 0
+    #     ap_sum = 0.0
+    #     num_questions = 0
+    #     for i in range(len(pred)):
+    #         question_id = gold[i, 1]
+    #         if i == len(pred) - 1 or question_id != gold[i + 1][1]:
+    #             ap_sum += average_precision_score(gold[question_start:(i + 1), 0],
+    #                                               pred[question_start:(i + 1)])
+    #             question_start = i + 1
+    #             num_questions += 1
+    #     return ap_sum / num_questions

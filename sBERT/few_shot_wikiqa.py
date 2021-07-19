@@ -66,13 +66,21 @@ def run_experiment(config):
                 assert (load_result.missing_keys == ['extra_head.weight', 'extra_head.bias'])
                 assert (load_result.unexpected_keys == [])
 
-    trainer = WikiQABinaryClassifierTrainer(model=wiki_qa_model, dataset=wiki_qa,
-                                            mode=config['sample_selection'],
-                                            trainset_size=config['train_size'],
-                                            trainset_seed=config['train_subset_seed'],
-                                            num_epochs=config['num_epochs'],
-                                            batch_size=config['batch_size'], lr=config['lr'],
-                                            devset_size=max(1000, config['train_size']))
+    if config['sample_selection'] == 'contrastive-loss':
+        trainer = WikiQARankingTrainer(model=wiki_qa_model, dataset=wiki_qa,
+                                       trainset_size=config['train_size'],
+                                       trainset_seed=config['train_subset_seed'],
+                                       num_epochs=config['num_epochs'],
+                                       batch_size=config['batch_size'], lr=config['lr'],
+                                       devset_size=max(1000, config['train_size']))
+    else:
+        trainer = WikiQABinaryClassifierTrainer(model=wiki_qa_model, dataset=wiki_qa,
+                                                mode=config['sample_selection'],
+                                                trainset_size=config['train_size'],
+                                                trainset_seed=config['train_subset_seed'],
+                                                num_epochs=config['num_epochs'],
+                                                batch_size=config['batch_size'], lr=config['lr'],
+                                                devset_size=max(1000, config['train_size']))
     result = trainer.train(disable_progress_bar=True, eval_zero_shot=False, early_stopping=True)
     save_name = 'pretrained_' + config['pretrained_model']
     return result, wiki_qa_model, save_name
@@ -85,11 +93,12 @@ grid = {
     'encoder': ['cross', 'bi'],
     'pretrained_model': [
         'bert', 'nli', 'sts', 'nli-sts'],
-    'sample_selection': ['downsampling', 'all-scaled', 'all-unscaled'],
+    # 'sample_selection': ['downsampling', 'all-scaled', 'all-unscaled'],
+    'sample_selection': ['contrastive-loss'],
     # 'mode': ['replace-head', 'shift-bias', 'additional-head'],
     # 'mode': 'shift-bias',
     # 'train_size': 2000,
-    'train_size': [10, 50, 100, 500, 1000, 2000, 5000, 10000],
+    'train_size': [10, 50, 100, 500, 1000, 2000, 5000, 8651],
     'train_subset_seed': [1, 2, 3]
 }
 

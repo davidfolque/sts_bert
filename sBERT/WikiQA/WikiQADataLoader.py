@@ -163,9 +163,9 @@ class WikiQADataLoader:
 
 
 class WikiQAQuestionsDataLoader(WikiQADataLoader):
-    def __init__(self, dataset, batch_size, is_test, size=None, shuffle=False, seed=0):
+    def __init__(self, dataset, batch_size, size=None, shuffle=False, seed=0):
         super().__init__(dataset=dataset, batch_size=batch_size, size=size, shuffle=shuffle,
-                         seed=seed, restrict_pos='all-also-neg' if is_test else 'all')
+                         seed=seed, restrict_pos='all-also-neg')
 
     def __iter__(self):
         return WikiQAQuestionsDLIterator(dataset=self.dataset, questions_idx=self.questions_idx,
