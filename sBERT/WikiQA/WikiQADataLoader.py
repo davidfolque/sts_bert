@@ -123,13 +123,13 @@ class WikiQADataLoader:
 
         # This permutation ensures that we will select k questions randomly. It does not ensure
         # that we will always return them in a random order.
-        if shuffle:
-            question_perm = np.random.default_rng(seed=seed).permutation(len(all_questions_idx))
-        else:
+        if size is None:
             question_perm = range(len(all_questions_idx))
+            size = len(dataset)
+        else:
+            question_perm = np.random.default_rng(seed=seed).permutation(len(all_questions_idx))
 
         self.questions_idx = []
-        size = len(dataset) if size is None else size
         current_size = 0
         warning_issued = False
         for idx in question_perm:

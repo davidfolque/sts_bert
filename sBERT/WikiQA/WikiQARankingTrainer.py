@@ -12,8 +12,7 @@ class WikiQARankingTrainer(Trainer):
         train_dl = WikiQAQuestionsDataLoader(dataset['train'], batch_size=batch_size,
                                              size=trainset_size, shuffle=True, seed=trainset_seed)
         dev_dl = WikiQAQuestionsDataLoader(dataset['validation'], batch_size=batch_size,
-                                           size=devset_size, shuffle=devset_size is not None,
-                                           seed=trainset_seed)
+                                           size=devset_size, seed=trainset_seed)
         test_dl = WikiQAQuestionsDataLoader(dataset['test'], batch_size=batch_size)
         optimizer = AdamW(model.parameters(), lr=lr)
 
@@ -39,7 +38,7 @@ class WikiQARankingTrainer(Trainer):
             qns = list(set(all_question_numbers.cpu().numpy()))
             all_qns_t = all_question_numbers
         else:
-            assert type(all_question_numbers) == np.array
+            assert type(all_question_numbers) == list
             qns = list(set(all_question_numbers))
             all_qns_t = torch.LongTensor(all_question_numbers).to(self.model.device)
         qns_t = torch.LongTensor(qns).to(self.model.device)
