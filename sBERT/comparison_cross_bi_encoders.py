@@ -25,9 +25,13 @@ def run_experiment(config):
                          num_epochs=config['num_epochs'], batch_size=config['batch_size'],
                          lr=config['lr'], lr_scheduler=config['lr_scheduler'],
                          warmup_percent=config['warmup_percent'])
-    result = trainer.train(disable_progress_bar=True)
+    disable_progress_bar = True
+    trainer.train(disable_progress_bar=disable_progress_bar)
+    test_performance, test_loss = trainer.score(trainer.test_dl,
+                                                disable_progress_bar=disable_progress_bar)
+    print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_performance))
     save_name = encoder + '_' + mode
-    return result, model, save_name
+    return test_performance, model, save_name
 
 
 grid = {

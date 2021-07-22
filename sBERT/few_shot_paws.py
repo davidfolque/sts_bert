@@ -88,9 +88,14 @@ def run_experiment(config):
                           dataset={'dev': dev_dataset_subset, 'test': paws_dataset['test']},
                           num_epochs=config['num_epochs'], batch_size=config['batch_size'],
                           lr=config['lr'])
-    result = trainer.train(disable_progress_bar=True, eval_zero_shot=False, early_stopping=True)
+    disable_progress_bar = True
+    trainer.train(disable_progress_bar=True, eval_zero_shot=False, early_stopping=True)
+    test_performance, test_loss = trainer.score(trainer.test_dl,
+                                                disable_progress_bar=disable_progress_bar)
+    print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_performance))
+
     save_name = 'pretrained_' + config['pretrained_model']
-    return result, paws_model, save_name
+    return test_performance, paws_model, save_name
 
 
 grid = {'num_epochs': 10,  # Size 5000 => 50s per epoch????

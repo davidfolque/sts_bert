@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 from tqdm import tqdm
-from scipy.stats import spearmanr
 from transformers import get_scheduler
 
 
@@ -115,7 +114,7 @@ class Trainer:
                         self.debug_step_function(middle=False)
 
                 # Print evaluation.
-                train_performance = self.performance(train_pred, train_gold)
+                train_performance = self.performance(np.array(train_pred), np.array(train_gold))
                 print('Train epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                     epoch + 1, train_loss / len(batch_pred), train_performance))
 
@@ -141,9 +140,3 @@ class Trainer:
                     break
 
         self.model.load_state_dict(self.best_model)
-
-        test_performance, test_loss = self.score(
-            self.test_dl, disable_progress_bar=disable_progress_bar)
-        print('Test loss: {:.4f}, score: {:.4f}'.format(test_loss, test_performance))
-
-        return test_performance, test_loss
