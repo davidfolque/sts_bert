@@ -46,8 +46,7 @@ class Trainer:
 
     # Override
     def predict_batch(self, batch):
-        print('Method predict_batch should be overridden.')
-        pass
+        raise NotImplementedError('Method predict_batch should be overridden.')
 
     def predict(self, dl, disable_progress_bar=False):
         pred = []
@@ -61,12 +60,12 @@ class Trainer:
     # Override
     @staticmethod
     def performance(pred, gold):
-        print('Method performance should be overridden.')
-        pass
+        raise NotImplementedError('Method performance should be overridden.')
 
     def score(self, dl, disable_progress_bar=False):
         pred, gold = self.predict(dl, disable_progress_bar=disable_progress_bar)
-        loss = self.loss_function(torch.Tensor(pred), torch.Tensor(gold))
+        loss = self.loss_function(torch.Tensor(pred).to(self.model.device),
+                                  torch.Tensor(gold).to(self.model.device))
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
@@ -96,8 +95,8 @@ class Trainer:
 
                     # Compute the loss. Turn gold values into tensors before.
                     if type(batch_gold) == list:
-                        batch_gold = torch.FloatTensor(batch_gold)
-                    loss = self.loss_function(batch_pred, batch_gold.to(self.model.device))
+                        batch_gold = torch.FloatTensor(batch_gold).to(self.model.device)
+                    loss = self.loss_function(batch_pred, batch_gold)
 
                     # Store loss for evaluation. Storing sum instead of mean.
                     train_loss += loss.item() * batch_gold.shape[0]

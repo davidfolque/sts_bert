@@ -46,7 +46,7 @@ def load_last_results_from_disk(dir_path, current_file=None):
 
     if len(results_files) == 0:
         print('Did not load any previous results')
-        return None
+        return pd.DataFrame()
 
     results_files.sort()
     load_path = dir_path + '/' + results_files[-1]
