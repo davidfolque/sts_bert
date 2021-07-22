@@ -7,6 +7,7 @@ import os.path
 import re
 from filelock import FileLock
 from Persistence import Persistence, ArrayJobInfo
+import gc
 
 
 def random_sample(n, k, seed):
@@ -26,6 +27,16 @@ def print_stats():
     print('User time: {:.2f} min'.format(user_time_min))
     print('GPU usage: total {:.2f} Gb, reserved {:.2f}, allocated {:.2f}'.format(cuda_total_gb,
         cuda_reserved_gb, cuda_allocated_gb))
+
+    num = 0
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                num += 1
+                # print(type(obj), obj.size(), obj.device)
+        except:
+            pass
+    print(num, 'tensors in memory')
 
 
 def construct_configs(grid):

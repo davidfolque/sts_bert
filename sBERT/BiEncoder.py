@@ -9,7 +9,7 @@ def select_from_state_dict(state_dict, key):
 
 class BiEncoder(nn.Module):
 
-    def __init__(self, mode='base', head='none', device='cuda'):
+    def __init__(self, mode='base', head='none', max_length=None, device='cuda'):
         super(BiEncoder, self).__init__()
 
         assert (mode in ['base-linear-pooling', 'base-mean-pooling', 'base-cls-pooling',
@@ -37,11 +37,14 @@ class BiEncoder(nn.Module):
         else:
             assert(self.head == 'none')
 
+        self.max_length = max_length
         self.device = device
         self.to(device)
 
-    def forward(self, **x):
-        x = self.bert(**x)
+    def forward(self, input_ids, token_type_ids, attention_mask):
+        x = self.bert(input_ids=input_ids, attention_mask=attention_mask,
+                      token_type_ids=token_type_ids)
+
         if self.mode in ['base-mean-pooling', 'nli-mean-pooling']:
             x = torch.mean(x.last_hidden_state, 1)
         elif self.mode in ['base-cls-pooling', 'nli-cls-pooling']:
@@ -62,7 +65,9 @@ class BiEncoder(nn.Module):
         return x
 
     def predict_batch(self, sentence1, sentence2):
-        inputs = self.tokenizer(sentence1 + sentence2, padding='longest', return_tensors='pt').to(
+        inputs = self.tokenizer(sentence1 + sentence2, padding='longest', 
+                                truncation=True,
+                                max_length=self.max_length, return_tensors='pt').to(
             self.device)
         outputs = self.forward(**inputs)
         return outputs

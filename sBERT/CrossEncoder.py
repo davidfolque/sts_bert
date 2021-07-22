@@ -11,7 +11,7 @@ def select_from_state_dict(state_dict, key):
 class CrossEncoder(nn.Module):
 
     def __init__(self, hidden_layer_size=200, mode='cls-pooling', pretrained_nli_label_num=3,
-                 device='cuda', toy_model=False):
+                 max_length_second=None, device='cuda', toy_model=False):
         super(CrossEncoder, self).__init__()
 
         assert(mode in ['cls-pooling', 'cls-pooling-hidden', 'mean-pooling', 'mean-pooling-hidden',
@@ -66,6 +66,7 @@ class CrossEncoder(nn.Module):
 
         if self.mode != 'nli-head-3rd-component':
             self.output_layer = nn.Linear(output_layer_in_size, 1)
+        self.max_length_second = max_length_second
         self.device = device
         self.to(device)
 
@@ -143,6 +144,8 @@ class CrossEncoderPretrained(nn.Module):
 
     def predict_batch(self, sentence1, sentence2):
         inputs = self.pretrained_cross_encoder.tokenizer(sentence1, sentence2, padding='longest',
+                                                         truncation='only_second',
+                                                         max_length=self.pretrained_cross_encoder.max_length_second,
                                                          return_tensors='pt').to(self.device)
         outputs = self.forward(**inputs).squeeze(1)
         return outputs

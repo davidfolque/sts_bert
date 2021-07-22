@@ -34,16 +34,17 @@ class WikiQARankingTrainer(Trainer):
                          warmup_percent=0.0, loss_function=loss_function)
 
     def make_mask(self, all_question_numbers):
-        if type(all_question_numbers) == torch.LongTensor:
+        if type(all_question_numbers) == torch.Tensor:
             qns = list(set(all_question_numbers.cpu().numpy()))
-            all_qns_t = all_question_numbers
+            all_qns_t = all_question_numbers.to(self.model.device).long()
         else:
             assert type(all_question_numbers) == list
             qns = list(set(all_question_numbers))
             all_qns_t = torch.LongTensor(all_question_numbers).to(self.model.device)
         qns_t = torch.LongTensor(qns).to(self.model.device)
         mask = torch.ones(all_qns_t.shape[0], len(qns), dtype=torch.long,
-                          device=self.model.device) * qns_t == all_qns_t.unsqueeze(1)
+                          device=self.model.device)
+        mask = mask * qns_t == all_qns_t.unsqueeze(1)
         return mask
 
     def predict_batch(self, batch):
