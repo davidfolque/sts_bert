@@ -10,6 +10,8 @@ import torchvision.datasets as datasets
 from torchvision import transforms
 import torch.optim as optim
 
+from Trainer import Trainer
+
 
 # this function does a depth-first search across a matrix of 0s and 1s,
 # looking for a path of 1s between the first and last columns of the matrix
@@ -124,10 +126,7 @@ class NN_one_hidden(nn.Module):
 
     def __getattr__(self, item):
         if item == 'device':
-            try:
-                return torch.cuda.get_device_name(self.layers[1].weight.data.get_device())
-            except RuntimeError:
-                return 'cpu'
+            return 'cpu'
         return super().__getattr__(item)
 
 
@@ -148,11 +147,31 @@ class NN_two_hidden(nn.Module):
 
     def __getattr__(self, item):
         if item == 'device':
-            try:
-                return torch.cuda.get_device_name(self.layers[1].weight.data.get_device())
-            except RuntimeError:
-                return 'cpu'
+            return 'cpu'
         return super().__getattr__(item)
+
+
+class PercolationTrainer(Trainer):
+    def __init__(self, train_dl, dev_dl, test_dl, load_model=None, n_epochs=10):
+        model = NN_one_hidden()
+        if load_model is not None:
+            model.load_state_dict(load_model.state_dict())
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        super().__init__(model, train_dl=train_dl, dev_dl=dev_dl, test_dl=test_dl,
+                         num_epochs=n_epochs, optimizer=optimizer, loss_function=torch.nn.BCELoss())
+
+    def predict_batch(self, batch):
+        images = batch['image']
+        labels = batch['label']
+        if len(labels.shape) > 1:
+            labels = labels.squeeze(1)
+        outputs = self.model(images).squeeze(1)
+        return outputs, labels
+
+    @staticmethod
+    def performance(pred, gold):
+        return ((pred > 0.5) == (gold > 0.5)).mean()
+
 
 
 def define_and_train(NN_class, args, n_epochs, training_set, test_set, batch_size=32,

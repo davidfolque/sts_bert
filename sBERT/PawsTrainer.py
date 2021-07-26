@@ -6,11 +6,17 @@ import torch.nn as nn
 
 class PawsTrainer(Trainer):
 
-    def __init__(self, model, train_dataset, dataset, num_epochs, batch_size=16, lr=2e-5,
-                 optimizer=None, sigmoid_temperature=1):
+    @staticmethod
+    def from_dataset(model, train_dataset, dataset, num_epochs, batch_size=16, lr=2e-5,
+                     optimizer=None, sigmoid_temperature=1):
         train_dl = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         dev_dl = DataLoader(dataset['dev'], batch_size=batch_size)
         test_dl = DataLoader(dataset['test'], batch_size=batch_size)
+        return PawsTrainer(model, train_dl, dev_dl, test_dl, num_epochs, batch_size, lr,
+                           optimizer, sigmoid_temperature)
+
+    def __init__(self, model, train_dl, dev_dl, test_dl, num_epochs, batch_size=16, lr=2e-5,
+                 optimizer=None, sigmoid_temperature=1):
         if optimizer is None:
             optimizer = AdamW(model.parameters(), lr=lr)
         loss_function = nn.BCELoss()

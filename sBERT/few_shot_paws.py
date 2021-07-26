@@ -84,10 +84,11 @@ def run_experiment(config):
                 assert (load_result.missing_keys == ['extra_head.weight', 'extra_head.bias'])
                 assert (load_result.unexpected_keys == [])
 
-    trainer = PawsTrainer(model=paws_model, train_dataset=train_dataset_subset,
-                          dataset={'dev': dev_dataset_subset, 'test': paws_dataset['test']},
-                          num_epochs=config['num_epochs'], batch_size=config['batch_size'],
-                          lr=config['lr'])
+    trainer = PawsTrainer.from_dataset(model=paws_model, train_dataset=train_dataset_subset,
+                                       dataset={'dev': dev_dataset_subset,
+                                                'test': paws_dataset['test']},
+                                       num_epochs=config['num_epochs'],
+                                       batch_size=config['batch_size'], lr=config['lr'])
     disable_progress_bar = True
     trainer.train(disable_progress_bar=True, eval_zero_shot=False, early_stopping=True)
     test_performance, test_loss = trainer.score(trainer.test_dl,

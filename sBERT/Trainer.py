@@ -39,6 +39,10 @@ class Trainer:
         self.best_model_epoch = 0
         self.best_model = None
 
+        # Store training progress.
+        self.training_progress = {'train_loss': [], 'train_performance': [], 'dev_loss': [],
+                                  'dev_performance': []}
+
         # Debug functions to execute after each step/epoch.
         self.debug_step_function = None
         self.debug_epoch_function = None
@@ -68,7 +72,7 @@ class Trainer:
         performance = self.performance(np.array(pred), np.array(gold))
         return performance, loss
 
-    def train(self, disable_progress_bar, eval_zero_shot=False, early_stopping=True):
+    def train(self, disable_progress_bar, eval_zero_shot=False, early_stopping=True, verbose=True):
         for epoch in range(-1, self.num_epochs):
 
             # Train epoch.
@@ -115,8 +119,11 @@ class Trainer:
 
                 # Print evaluation.
                 train_performance = self.performance(np.array(train_pred), np.array(train_gold))
-                print('Train epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
-                    epoch + 1, train_loss / len(batch_pred), train_performance))
+                if verbose:
+                    print('Train epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
+                        epoch + 1, train_loss / len(batch_pred), train_performance))
+                self.training_progress['train_loss'].append(train_loss)
+                self.training_progress['train_performance'].append(train_performance)
 
                 if self.debug_epoch_function is not None:
                     self.debug_epoch_function()
@@ -131,12 +138,16 @@ class Trainer:
                     self.best_dev_performance = dev_performance
                     self.best_model_epoch = epoch
                     ast = '*'
-                print('Dev epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
-                    epoch + 1, dev_loss, dev_performance) + ast)
+                if verbose:
+                    print('Dev epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
+                        epoch + 1, dev_loss, dev_performance) + ast)
+                self.training_progress['dev_loss'].append(dev_loss)
+                self.training_progress['dev_performance'].append(dev_performance)
 
                 if early_stopping and epoch + 1 >= (self.num_epochs + 1) // 2 and \
                         self.best_model_epoch <= epoch - 2:
-                    print('Early stopping')
+                    if verbose:
+                        print('Early stopping')
                     break
 
         self.model.load_state_dict(self.best_model)

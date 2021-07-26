@@ -19,11 +19,11 @@ class ALDataLoaderIterator:
         first_idx = self.i
         next_idx = min(self.i + self.batch_size, len(self.indices))
         assert next_idx > first_idx
-        batch = {key: [self.dataset[self.indices[j][key]] for j in range(first_idx, next_idx)] for
+        batch = {key: [self.dataset[self.indices[j]][key] for j in range(first_idx, next_idx)] for
                  key in self.dataset[0].keys()}
         for key in self.dataset[0].keys():
             if type(batch[key][0]) == torch.Tensor:
-                batch[key] = torch.tensor(batch[key])
+                batch[key] = torch.cat(batch[key])
         self.i = next_idx
         return batch
 
@@ -50,13 +50,10 @@ class ALDataLoader:
         self.select_indices(indices)
 
     def train(self):
-        assert not self.training
         self.training = True
         self.selection_indices = None
 
     def selection(self):
-        assert self.training
-        assert self.selection_indices is None
         self.training = False
 
     def __iter__(self):
@@ -70,6 +67,8 @@ class ALDataLoader:
         return iterator
 
     def __len__(self):
-        print('Warning: called ALDataLoader::__len__ but it has variable length. Returning '
-              'total possible length.')
+        if 'warning_issued' not in dir(self):
+            print('Warning: called ALDataLoader::__len__ but it has variable length. Returning '
+                  'total possible length.')
+            self.warning_issued = True
         return (len(self.dataset) - 1) // self.batch_size + 1
