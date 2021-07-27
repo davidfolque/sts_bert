@@ -122,7 +122,7 @@ class Trainer:
                 if verbose:
                     print('Train epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                         epoch + 1, train_loss / len(batch_pred), train_performance))
-                self.training_progress['train_loss'].append(train_loss)
+                self.training_progress['train_loss'].append(train_loss / len(batch_pred))
                 self.training_progress['train_performance'].append(train_performance)
 
                 if self.debug_epoch_function is not None:
@@ -141,7 +141,7 @@ class Trainer:
                 if verbose:
                     print('Dev epoch {:<4d}: loss: {:<8.4f}, score: {:<8.4f}'.format(
                         epoch + 1, dev_loss, dev_performance) + ast)
-                self.training_progress['dev_loss'].append(dev_loss)
+                self.training_progress['dev_loss'].append(dev_loss.item())
                 self.training_progress['dev_performance'].append(dev_performance)
 
                 if early_stopping and epoch + 1 >= (self.num_epochs + 1) // 2 and \
