@@ -1,7 +1,5 @@
-
 import numpy as np
 import torch
-
 
 class ALDataLoaderIterator:
     def __init__(self, dataset, selected, batch_size, shuffle):
@@ -19,8 +17,9 @@ class ALDataLoaderIterator:
         first_idx = self.i
         next_idx = min(self.i + self.batch_size, len(self.indices))
         assert next_idx > first_idx
-        batch = {key: [self.dataset[self.indices[j]][key] for j in range(first_idx, next_idx)] for
-                 key in self.dataset[0].keys()}
+        batch = {
+            key: [self.dataset[self.indices[j].item()][key] for j in range(first_idx, next_idx)] for
+            key in self.dataset[0].keys()}
         for key in self.dataset[0].keys():
             if type(batch[key][0]) == torch.Tensor:
                 batch[key] = torch.cat(batch[key])
