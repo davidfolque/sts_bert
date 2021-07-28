@@ -5,7 +5,7 @@ from PawsTrainer import PawsTrainer
 import torch
 import numpy as np
 from ActiveLearning.ALDataLoader import ALDataLoader
-from GridRun import GridRun
+from GridRun import GridRun, get_array_info
 import pickle
 
 
@@ -25,7 +25,9 @@ if False:
 # original_model = CrossEncoderPretrained(CrossEncoder(mode='nli-base'), mode='as-is')
 # original_model = None
 
-grid_run = GridRun(None, 'al_lc_paws_1000_500_3500_random_starts')
+array_info = get_array_info()
+
+grid_run = GridRun(None, 'al_lc_paws_1000_500_3500_random_starts', array_info=array_info)
 experiment_dir = grid_run.persistence.experiment_dir
 
 
@@ -96,6 +98,7 @@ def run_experiment(config):
 
 
 grid = {
+    'mode': ['lc', 'mc', 'rnd'],
     'initial_k': 1000,
     'k': 500,
     'times': 5,
@@ -106,6 +109,9 @@ grid = {
     'pretrained_model': 'nli',
     'train_subset_seed': 1
 }
+
+if array_info is not None:
+    grid['mode'] = grid['mode'][array_info.task_id]
 
 grid_run.run_experiment_fnc = run_experiment
 grid_run.run(grid)

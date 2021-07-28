@@ -69,6 +69,18 @@ def construct_query(d):
     return query[:-5]
 
 
+def get_array_info():
+    import os
+    n_tasks = 1
+    if 'SLURM_ARRAY_TASK_COUNT' in os.environ:
+        n_tasks = int(os.environ['SLURM_ARRAY_TASK_COUNT'])
+    if n_tasks > 1:
+        task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
+        array_id = int(os.environ['SLURM_ARRAY_JOB_ID'])
+        return ArrayJobInfo(array_id=array_id, task_id=task_id)
+    return None
+
+
 class GridRun():
     def __init__(self, run_experiment_fnc, experiment_name, execution_name=None, array_info=None,
                  root_dir='./results'):
