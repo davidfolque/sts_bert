@@ -10,6 +10,7 @@ import pickle
 
 
 datasets_path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/datasets/'
+datasets_path = '/home/cs-folq1/my_rds/rds/datasets/'
 # datasets_path = '/home/david/Documents/PhD/rds/datasets/'
 
 paws_dataset = load_paws_wiki(datasets_path=datasets_path)
@@ -27,7 +28,7 @@ if False:
 
 array_info = get_array_info()
 
-grid_run = GridRun(None, 'al_lc_paws_1000_500_3500_random_starts', array_info=array_info)
+grid_run = GridRun(None, 'al_lc_paws_100_50_350_random_starts', array_info=array_info)
 experiment_dir = grid_run.persistence.experiment_dir
 
 
@@ -42,6 +43,7 @@ def run_experiment(config):
 
     training_progresses = []
     dev_performances = []
+    test_performances = []
     all_confidences = []
     all_indices = [np.nonzero(train_dl.selected)[0]]
 
@@ -61,6 +63,7 @@ def run_experiment(config):
         training_progresses.append(trainer.training_progress)
         dev_performances.append(trainer.best_dev_performance)
         test_score, test_loss = trainer.score(trainer.test_dl, disable_progress_bar=False)
+        test_performances.append(test_score)
         print('Dataloader size: {}, dev score: {}, test score: {}'.format(
             np.sum(train_dl.selected), trainer.best_dev_performance, test_score))
 
@@ -86,32 +89,34 @@ def run_experiment(config):
     contents = {
         'training_progresses': training_progresses,
         'dev_performances': dev_performances,
+        'test_performances': test_performances,
         'all_confidences': all_confidences,
         'all_indices': all_indices
     }
     contents_file_name = experiment_dir + '/contents_' + config['mode'] + '_' + \
-                         config['train_subset_seed'] + '.pickle'
+                         str(config['train_subset_seed']) + '.pickle'
     with open(contents_file_name, 'wb') as f:
         pickle.dump(contents, f)
 
-    return test_score, None, None
+    # return (0, 0), None, None
+    return (test_score, test_loss), None, None
 
 
 grid = {
     'mode': ['lc', 'mc', 'rnd'],
-    'initial_k': 1000,
-    'k': 500,
+    'initial_k': 100,
+    'k': 50,
     'times': 5,
     'n_epochs': 5,
     'batch_size': 50,
     'lr': 5e-5,
     'encoder': 'cross',
     'pretrained_model': 'nli',
-    'train_subset_seed': 1
+    'train_subset_seed': [1, 2, 3, 4]
 }
 
 if array_info is not None:
-    grid['mode'] = grid['mode'][array_info.task_id]
+    grid['train_subset_seed'] = grid['train_subset_seed'][array_info.task_id]
 
 grid_run.run_experiment_fnc = run_experiment
 grid_run.run(grid)
