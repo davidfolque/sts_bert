@@ -7,6 +7,9 @@ import numpy as np
 from ActiveLearning.ALDataLoader import ALDataLoader
 from GridRun import GridRun, get_array_info
 import pickle
+from sklearn.decomposition import PCA
+from sklearn.cluster import k_means
+from scipy.spatial import KDTree
 
 
 datasets_path = '/home/cs-folq1/rds/rds-t2-cspp025-5bF3aEHVmLU/cs-folq1/datasets/'
@@ -78,13 +81,56 @@ def run_experiment(config):
                 probs = np.expand_dims(np.array(probs), 1)
                 confidences = np.concatenate((probs, 1 - probs), axis=1).max(axis=1)
                 all_confidences.append(confidences)
-                if config['mode'] == 'mc':
-                    confidences = -confidences
+                if config['mode'] in ['mc', 'lc']:
+                    if config['mode'] == 'mc':
+                        confidences = -confidences
+                    else:
+                        assert config['mode'] == 'lc'
+                    lc_indices = np.argpartition(confidences, range(config['k']))[:config['k']]
+                    query = train_dl.selection_indices[lc_indices]
                 else:
-                    assert config['mode'] == 'lc'
-                lc_indices = np.argpartition(confidences, range(config['k']))[:config['k']]
-                all_indices.append(train_dl.selection_indices[lc_indices])
-                train_dl.select_indices(train_dl.selection_indices[lc_indices])
+                    assert config['mode'] in ['lc-kmeans/mean', 'lc-kmeans/cls']
+                    repr_mode = config['mode'].split('/')[1]
+
+                    beta = 10
+
+                    # confidences: confidences of the unlabelled data.
+                    #
+                    # lc_indices: k*beta least confidences indices, sorted by confidence and
+                    # pointing to the unlabelled data.
+                    #
+                    # representations: representations of the elements of lc_indices, but sorted by
+                    # original order (all training data)
+                    #
+                    # sorted_lc_indices: lc_indices sorted by unlabelled data order => sorted by all
+                    # training data order.
+
+                    kbeta = config['k'] * beta
+                    lc_indices = np.argpartition(confidences, range(kbeta))[:kbeta]
+                    sorted_lc_indices = np.sort(lc_indices)
+                    temp_dl = ALDataLoader(paws_dataset['train'], batch_size=config['batch_size'],
+                                           shuffle_train=False)
+                    temp_dl.select_indices(train_dl.selection_indices[lc_indices])
+                    representations = []
+                    with torch.no_grad():
+                        for batch in temp_dl:
+                            inputs = model.tokenize(batch['sentence1'], batch['sentence2'])
+                            outputs = model.pretrained_cross_encoder.forward_intermediate(
+                                mode=repr_mode, **inputs)
+                            representations.append(outputs.cpu().numpy())
+                    representations = np.concatenate(representations, axis=0)
+                    repr_uncertainties = 2 * (1 - confidences[sorted_lc_indices])
+
+                    centroids = k_means(representations, n_clusters=config['k'],
+                                        sample_weight=repr_uncertainties)[0]
+
+                    kdtree = KDTree(representations)
+                    nearest_to_centroids = kdtree.query(centroids)[1]
+
+                    query = train_dl.selection_indices[sorted_lc_indices[nearest_to_centroids]]
+
+                all_indices.append(query)
+                train_dl.select_indices(query)
 
     contents = {
         'training_progresses': training_progresses,
@@ -103,7 +149,7 @@ def run_experiment(config):
 
 
 grid = {
-    'mode': ['lc', 'mc', 'rnd'],
+    'mode': ['lc', 'mc', 'rnd', 'lc-kmeans/mean', 'lc-kmeans/cls'],
     'initial_k': 100,
     'k': 50,
     'times': 5,
@@ -112,7 +158,7 @@ grid = {
     'lr': 5e-5,
     'encoder': 'cross',
     'pretrained_model': 'nli',
-    'train_subset_seed': [1, 2, 3, 4]
+    'train_subset_seed': [1, 2, 3, 4, 5]
 }
 
 if array_info is not None:

@@ -94,6 +94,14 @@ class CrossEncoder(nn.Module):
 
         return x
 
+    def forward_intermediate(self, input_ids, token_type_ids, attention_mask, mode='cls'):
+        x = self.bert(input_ids=input_ids, attention_mask=attention_mask,
+                      token_type_ids=token_type_ids)
+        if mode == 'cls':
+            return x.last_hidden_state[:, 0, :]
+        assert mode == 'mean'
+        return torch.mean(x.last_hidden_state, dim=1)
+
     def predict_batch(self, sentence1, sentence2, flip=False):
         inputs = self.tokenizer(sentence1, sentence2, padding='longest', return_tensors='pt').to(
             self.device)
@@ -142,10 +150,13 @@ class CrossEncoderPretrained(nn.Module):
 
         return x
 
+    def tokenize(self, sentence1, sentence2):
+        return self.pretrained_cross_encoder.tokenizer(sentence1, sentence2, padding='longest',
+                                                       truncation='only_second',
+                                                       max_length=self.pretrained_cross_encoder.max_length_second,
+                                                       return_tensors='pt').to(self.device)
+
     def predict_batch(self, sentence1, sentence2):
-        inputs = self.pretrained_cross_encoder.tokenizer(sentence1, sentence2, padding='longest',
-                                                         truncation='only_second',
-                                                         max_length=self.pretrained_cross_encoder.max_length_second,
-                                                         return_tensors='pt').to(self.device)
+        inputs = self.tokenize(sentence1, sentence2)
         outputs = self.forward(**inputs).squeeze(1)
         return outputs
