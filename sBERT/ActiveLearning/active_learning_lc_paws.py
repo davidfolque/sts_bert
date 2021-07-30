@@ -89,8 +89,8 @@ def run_experiment(config):
                     lc_indices = np.argpartition(confidences, range(config['k']))[:config['k']]
                     query = train_dl.selection_indices[lc_indices]
                 else:
-                    assert config['mode'] in ['lc-kmeans/mean', 'lc-kmeans/cls']
-                    repr_mode = config['mode'].split('/')[1]
+                    assert config['mode'] in ['lc_kmeans-mean', 'lc_kmeans-cls']
+                    repr_mode = config['mode'].split('-')[1]
 
                     beta = 10
 
@@ -149,7 +149,7 @@ def run_experiment(config):
 
 
 grid = {
-    'mode': ['lc', 'mc', 'rnd', 'lc-kmeans/mean', 'lc-kmeans/cls'],
+    'mode': ['lc', 'mc', 'rnd', 'lc_kmeans-mean', 'lc_kmeans-cls'],
     'initial_k': 100,
     'k': 50,
     'times': 5,
