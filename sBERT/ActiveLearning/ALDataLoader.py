@@ -37,13 +37,17 @@ class ALDataLoader:
         self.rng = np.random.default_rng(seed=seed)
         self.training = True
         self.selection_indices = None
+        self.labels = np.array([item['label'] for item in self.dataset])
 
     def select_indices(self, indices):
         assert not np.any(self.selected[indices])
         self.selected[indices] = True
 
-    def select_k_at_random(self, k):
-        not_selected = np.nonzero(~self.selected)[0]
+    def select_k_at_random(self, k, ensure=None):
+        mask = ~self.selected
+        if ensure is not None:
+            mask = mask & self.labels == ensure
+        not_selected = np.nonzero(mask)[0]
         assert k <= len(not_selected)
         indices = self.rng.choice(not_selected, k, replace=False)
         self.select_indices(indices)
