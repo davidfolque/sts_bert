@@ -35,21 +35,25 @@ class WikiQABinaryClassifierTrainerBase(Trainer):
     def predict_batch(self, batch):
         logits = self.model.predict_batch(batch['question'], batch['answer'])
         outputs = self.sigmoid(logits)
-        targets = list(zip(map(float, batch['label']), batch['question_number']))
+        # Adding labels twice, as we don't need the question numbers. This could be improved, as
+        # we don't need to pass 2 things anymore?
+        targets = list(zip(map(float, batch['label']), batch['label']))
         return outputs, targets
 
     @staticmethod
-    def performance(pred, gold):
+    def performance(pred, gold, verbose=False):
         # F1
 
         if type(gold) == list:
             gold = np.array(gold)
             pred = np.array(pred)
         cm = confusion_matrix(gold[:, 0], pred > 0.5, labels=[0, 1])
-        print(pd.DataFrame(cm, columns=['Predicted-', 'Predicted+'], index=['Gold-', 'Gold+']))
+        if verbose:
+            print(pd.DataFrame(cm, columns=['Predicted-', 'Predicted+'], index=['Gold-', 'Gold+']))
         precision, recall, f1, support = precision_recall_fscore_support(gold[:, 0], pred > 0.5,
                                                                          average='binary')
-        print('Precision {:.2f}, recall {:.2f}, F1 {:.2f}'.format(precision, recall, f1))
+        if verbose:
+            print('Precision {:.2f}, recall {:.2f}, F1 {:.2f}'.format(precision, recall, f1))
         return f1
 
         # Accuracy
@@ -115,4 +119,4 @@ class WikiQABinaryClassifierForALTrainer(WikiQABinaryClassifierTrainerBase):
                          warmup_percent=0.0, loss_function=None)
 
         assert train_dl.training
-        self.update_scaled_loss_function(self.mode == 'scaled')
+        self.update_scaled_loss_function(is_scaled=(self.mode == 'scaled'))
