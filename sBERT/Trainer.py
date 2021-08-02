@@ -54,10 +54,11 @@ class Trainer:
     def predict(self, dl, disable_progress_bar=False):
         pred = []
         gold = []
-        for batch in tqdm(dl, disable=disable_progress_bar):
-            batch_pred, batch_gold = self.predict_batch(batch)
-            pred += tolist(batch_pred)
-            gold += tolist(batch_gold)
+        with torch.no_grad():
+            for batch in tqdm(dl, disable=disable_progress_bar):
+                batch_pred, batch_gold = self.predict_batch(batch)
+                pred += tolist(batch_pred)
+                gold += tolist(batch_gold)
         return pred, gold
 
     # Override

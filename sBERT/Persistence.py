@@ -26,7 +26,7 @@ class DeactivableLock:
 def check_create_dir(path):
     if not os.path.isdir(path):
         print('Creating dir ' + path)
-        os.mkdir(path)
+        os.makedirs(path, exist_ok=True)
 
 
 def load_possibly_empty_file(path):
