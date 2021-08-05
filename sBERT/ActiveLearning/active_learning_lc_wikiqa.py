@@ -46,8 +46,17 @@ experiment_dir = grid_run.persistence.experiment_dir
 def run_experiment(config):
     train_dl = ALDataLoader(wikiqa_dataset['train'], batch_size=config['batch_size'],
                             shuffle_train=True, seed=config['train_subset_seed'])
-    train_dl.select_k_at_random(config['initial_k'] // 2, ensure=0)
-    train_dl.select_k_at_random(config['initial_k'] // 2, ensure=1)
+    positives = 0
+    while positives < 5:
+        print('Sampling initial {}'.format(config['initial_k']))
+        train_dl.selected.fill(False)
+        train_dl.select_k_at_random(config['initial_k'])
+        positives = train_dl.selected.sum()
+        print('Number of positives found: {}'.format(positives))
+
+    # train_dl.select_k_at_random(config['initial_k'] // 2, ensure=0)
+    # train_dl.select_k_at_random(config['initial_k'] // 2, ensure=1)
+
     dev_dl = torch.utils.data.DataLoader(wikiqa_dataset['validation'],
                                          batch_size=config['batch_size'], shuffle=False)
     test_dl = torch.utils.data.DataLoader(wikiqa_dataset['test'], batch_size=config['batch_size'],
@@ -81,10 +90,9 @@ def run_experiment(config):
         training_progresses.append(trainer.training_progress)
         dev_performances.append(trainer.best_dev_performance)
         test_score, test_loss = trainer.score(trainer.test_dl, disable_progress_bar=False)
+        test_performances.append(test_score)
         print('Dataloader size: {}, dev score: {:.4f}, test score: {:.4f}'.format(
             np.sum(train_dl.selected), trainer.best_dev_performance, test_score))
-
-
 
 
         if i < config['times']:
