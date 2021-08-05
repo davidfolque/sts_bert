@@ -4,14 +4,9 @@ from CrossEncoder import CrossEncoder, CrossEncoderPretrained
 from WikiQA.WikiQABinaryClassifierTrainer import WikiQABinaryClassifierForALTrainer
 import torch
 import numpy as np
-from ActiveLearning.ALDataLoader import ALDataLoader
 from GridRun import GridRun, get_array_info
+from ActiveLearning.ActiveLearningRun import ActiveLearningRun
 import pickle
-from sklearn.decomposition import PCA
-from sklearn.cluster import k_means
-from scipy.spatial import KDTree
-import gc
-
 
 wikiqa_dataset = load_wiki_qa()
 
@@ -25,17 +20,27 @@ if False:
     print(len(wikiqa_dataset['validation']))
 
 
-def create_model():
-    original_sts_cross_model_path = 'results/pretraining_sts/results_210702_094435_'\
-                                    'cross-encoder_cls-pooling-hidden_best_model.bin'
-    max_length_answer = 128
-    sts_model = CrossEncoder(mode='cls-pooling-hidden', max_length_second=2 * max_length_answer)
-    sts_model.load_state_dict(torch.load(original_sts_cross_model_path))
-    wiki_qa_model = CrossEncoderPretrained(sts_model, mode='replace-head')
-    return wiki_qa_model
+class ALRunForWikiQA(ActiveLearningRun):
+    # Override
+    def create_model(self):
+        original_sts_cross_model_path = 'results/pretraining_sts/results_210702_094435_' \
+                                        'cross-encoder_cls-pooling-hidden_best_model.bin'
+        max_length_answer = 128
+        sts_model = CrossEncoder(mode='cls-pooling-hidden', max_length_second=2 * max_length_answer)
+        sts_model.load_state_dict(torch.load(original_sts_cross_model_path))
+        wiki_qa_model = CrossEncoderPretrained(sts_model, mode='replace-head')
+        return wiki_qa_model
 
-# original_model = CrossEncoderPretrained(CrossEncoder(mode='nli-base'), mode='as-is')
-# original_model = None
+    # Override
+    def create_trainer(self, model, train_dl, dev_dl, test_dl, num_epochs, lr):
+        return WikiQABinaryClassifierForALTrainer(model=model, train_dl=train_dl, dev_dl=dev_dl,
+                                                  test_dl=test_dl, mode='scaled',
+                                                  num_epochs=num_epochs, lr=lr)
+
+    # Override
+    def tokenize_batch(self, model, batch):
+        return model.tokenize(batch['question'], batch['answer'])
+
 
 array_info = get_array_info()
 
@@ -44,134 +49,27 @@ experiment_dir = grid_run.persistence.experiment_dir
 
 
 def run_experiment(config):
-    train_dl = ALDataLoader(wikiqa_dataset['train'], batch_size=config['batch_size'],
-                            shuffle_train=True, seed=config['train_subset_seed'])
-    positives = 0
-    while positives < 5:
-        print('Sampling initial {}'.format(config['initial_k']))
-        train_dl.selected.fill(False)
-        train_dl.select_k_at_random(config['initial_k'])
-        positives = train_dl.selected.sum()
-        print('Number of positives found: {}'.format(positives))
+    al_run = ALRunForWikiQA(wikiqa_dataset['train'], wikiqa_dataset['validation'],
+                            wikiqa_dataset['test'])
 
-    # train_dl.select_k_at_random(config['initial_k'] // 2, ensure=0)
-    # train_dl.select_k_at_random(config['initial_k'] // 2, ensure=1)
-
-    dev_dl = torch.utils.data.DataLoader(wikiqa_dataset['validation'],
-                                         batch_size=config['batch_size'], shuffle=False)
-    test_dl = torch.utils.data.DataLoader(wikiqa_dataset['test'], batch_size=config['batch_size'],
-                                          shuffle=False)
-
-    training_progresses = []
-    dev_performances = []
-    test_performances = []
-    all_confidences = []
-    all_indices = [np.nonzero(train_dl.selected)[0]]
-
-    for i in range(config['times'] + 1):
-        train_dl.train()
-
-        assert config['encoder'] == 'cross' and config['pretrained_model'] == 'sts'
-
-        if 'model' in dir():
-            del model
-        gc.collect()
-        torch.cuda.empty_cache()
-        model = create_model()
-
-        # if original_model is not None:
-        #     model.load_state_dict(original_model.state_dict())
-
-        trainer = WikiQABinaryClassifierForALTrainer(model=model, train_dl=train_dl, dev_dl=dev_dl,
-                                                     test_dl=test_dl, mode='scaled',
-                                                     num_epochs=config['n_epochs'], lr=config['lr'])
-        trainer.train(disable_progress_bar=True, verbose=False, eval_zero_shot=True,
-                      early_stopping=False)
-        training_progresses.append(trainer.training_progress)
-        dev_performances.append(trainer.best_dev_performance)
-        test_score, test_loss = trainer.score(trainer.test_dl, disable_progress_bar=False)
-        test_performances.append(test_score)
-        print('Dataloader size: {}, dev score: {:.4f}, test score: {:.4f}'.format(
-            np.sum(train_dl.selected), trainer.best_dev_performance, test_score))
-
-
-        if i < config['times']:
-            train_dl.selection()
-            probs, _ = trainer.predict(train_dl, disable_progress_bar=False)
-            probs = np.expand_dims(np.array(probs), 1)
-            confidences = np.concatenate((probs, 1 - probs), axis=1).max(axis=1)
-            all_confidences.append(confidences)
-
-            if config['mode'] == 'rnd':
-                old_selected = train_dl.selected.copy()
-                train_dl.select_k_at_random(config['k'])
-                all_indices.append(np.nonzero(train_dl.selected & ~old_selected)[0])
-            else:
-                if config['mode'] in ['mc', 'lc']:
-                    if config['mode'] == 'mc':
-                        confidences = -confidences
-                    else:
-                        assert config['mode'] == 'lc'
-                    lc_indices = np.argpartition(confidences, range(config['k']))[:config['k']]
-                    query = train_dl.selection_indices[lc_indices]
-                else:
-                    assert config['mode'] in ['lc_kmeans-mean', 'lc_kmeans-cls']
-                    repr_mode = config['mode'].split('-')[1]
-
-                    beta = 10
-
-                    # confidences: confidences of the unlabelled data.
-                    #
-                    # lc_indices: k*beta least confidences indices, sorted by confidence and
-                    # pointing to the unlabelled data.
-                    #
-                    # representations: representations of the elements of lc_indices, but sorted by
-                    # original order (all training data)
-                    #
-                    # sorted_lc_indices: lc_indices sorted by unlabelled data order => sorted by all
-                    # training data order.
-
-                    kbeta = config['k'] * beta
-                    lc_indices = np.argpartition(confidences, range(kbeta))[:kbeta]
-                    sorted_lc_indices = np.sort(lc_indices)
-                    temp_dl = ALDataLoader(wikiqa_dataset['train'], batch_size=config['batch_size'],
-                                           shuffle_train=False)
-                    temp_dl.select_indices(train_dl.selection_indices[lc_indices])
-                    representations = []
-                    with torch.no_grad():
-                        for batch in temp_dl:
-                            inputs = model.tokenize(batch['sentence1'], batch['sentence2'])
-                            outputs = model.pretrained_cross_encoder.forward_intermediate(
-                                mode=repr_mode, **inputs)
-                            representations.append(outputs.cpu().numpy())
-                    representations = np.concatenate(representations, axis=0)
-                    repr_uncertainties = 2 * (1 - confidences[sorted_lc_indices])
-
-                    centroids = k_means(representations, n_clusters=config['k'],
-                                        sample_weight=repr_uncertainties)[0]
-
-                    kdtree = KDTree(representations)
-                    nearest_to_centroids = kdtree.query(centroids)[1]
-
-                    query = train_dl.selection_indices[sorted_lc_indices[nearest_to_centroids]]
-
-                all_indices.append(query)
-                train_dl.select_indices(query)
+    al_run.run(mode=config['mode'], initial_k=config['initial_k'], inc_k=config['k'],
+               times=config['times'], n_epochs=config['n_epochs'], batch_size=config['batch_size'],
+               lr=config['lr'], train_subset_seed=config['train_subset_seed'], min_positives=5)
 
     contents = {
-        'training_progresses': training_progresses,
-        'dev_performances': dev_performances,
-        'test_performances': test_performances,
-        'all_confidences': all_confidences,
-        'all_indices': all_indices
+        'training_progresses': al_run.training_progresses,
+        'dev_scores': al_run.dev_scores,
+        'test_scores': al_run.test_scores,
+        'all_probs': al_run.all_probs,
+        'all_indices': al_run.all_indices
     }
     contents_file_name = experiment_dir + '/contents_' + config['mode'] + '_' + \
                          str(config['train_subset_seed']) + '.pickle'
     with open(contents_file_name, 'wb') as f:
         pickle.dump(contents, f)
 
-    # return (0, 0), None, None
-    return (test_score, test_loss), None, None
+    # This is hacky. We are not interested in final score or loss anyway.
+    return (al_run.test_scores[-1], al_run.test_scores[-1]), None, None
 
 
 grid = {
