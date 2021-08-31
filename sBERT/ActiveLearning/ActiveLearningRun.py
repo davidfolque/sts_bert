@@ -1,5 +1,4 @@
 import torch
-import torch.utils.data.DataLoader as TorchDataLoader
 import numpy as np
 import gc
 from sklearn.cluster import k_means
@@ -40,7 +39,8 @@ class ActiveLearningRun:
             print('Sampling initial {}'.format(initial_k))
             train_dl.selected.fill(False)
             train_dl.select_k_at_random(initial_k)
-            positives = train_dl.selected.sum()
+            positives = np.sum([elem['label'] for i, elem in enumerate(self.train_ds) 
+                                if train_dl.selected[i]])
             print('Number of positives found: {}'.format(positives))
             resample = False
             if min_positives is not None:
@@ -49,8 +49,8 @@ class ActiveLearningRun:
         # train_dl.select_k_at_random(initial_k // 2, ensure=0)
         # train_dl.select_k_at_random(initial_k // 2, ensure=1)
 
-        dev_dl = TorchDataLoader(self.dev_ds, batch_size=batch_size, shuffle=False)
-        test_dl = TorchDataLoader(self.test_ds, batch_size=batch_size, shuffle=False)
+        dev_dl = torch.utils.data.DataLoader(self.dev_ds, batch_size=batch_size, shuffle=False)
+        test_dl = torch.utils.data.DataLoader(self.test_ds, batch_size=batch_size, shuffle=False)
 
         self.all_indices.append(np.nonzero(train_dl.selected)[0])
 
